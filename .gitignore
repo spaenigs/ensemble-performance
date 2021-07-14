@@ -1,0 +1,5 @@
+/.snakemake/
+.idea
+data/
+__pycache__
+*egg-info

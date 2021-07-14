@@ -1,0 +1,14 @@
+# run before: sudo apt-get install build-essential swig
+
+channels:
+  - anaconda
+  - conda-forge
+dependencies:
+  - gcc_linux-64
+  - gxx_linux-64
+  - pip
+  - pip:
+      - -r https://raw.githubusercontent.com/automl/auto-sklearn/master/requirements.txt
+      - auto-sklearn
+      - -e ../../lib/optimizer/ # since env will be built in .snakemake/conda/
+      - -e ../../lib/utils/
