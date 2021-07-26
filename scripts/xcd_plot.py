@@ -170,13 +170,15 @@ class XCDChart:
                 "size": [df.iloc[-1, 2] - df.iloc[0, 2]]
             })).reset_index().drop("level_1", axis=1)
 
-        width = 160
-        height = 240
+        lines = source.shape[0]
+        direction = "x_axis" if fields["y"] == "y:N" else "y_axis"
 
-        if data.shape[0] == 6:
-            height = 20 if source.shape[0] == 1 else 20 * source.shape[0]
+        if direction == "x_axis":
+            width = 160
+            height = 20 if lines == 0 else 20 * lines
         else:
-            width = 20 if source.shape[0] == 1 else 20 * source.shape[0]
+            height = 240
+            width = 20 if lines == 0 else 20 * lines
 
         rules = alt.Chart(source).transform_calculate(
             size_="datum.size == 0 ? 10 : 10 + (datum.size * 10)"
@@ -268,7 +270,7 @@ class XCDChart:
                 ),
             ),
             self.annotate_axis(fields={
-                "y": alt.X(
+                "y": alt.Y(
                     "model_names:N",
                     sort=alt.SortArray(list(self.y_order.keys()))
                 )

@@ -38,19 +38,14 @@ META_MODEL = {
 META_MODELS = list(META_MODEL.keys())
 
 DATASETS = [
-    # 203
-    "avp_amppred",
-    "amp_antibp2",
-    "isp_il10pred",
-    "cpp_mlcpp-complete",
-
-    # 199
-    "nep_neuropipred-complete",
-    "pip_pipel",
-    "aip_antiinflam-complete",
-
-    # 179
-    "acp_mlacp",
+    # "avp_amppred",
+    # "amp_antibp2",
+    # "isp_il10pred",
+    # "cpp_mlcpp-complete",
+    # "nep_neuropipred-complete",
+    # "pip_pipel",
+    # "aip_antiinflam-complete",
+    # "acp_mlacp",
     "atb_antitbp",
     "hem_hemopi"
 ]
@@ -58,8 +53,7 @@ DATASETS = [
 N_ENCODINGS = None
 
 wildcard_constraints:
-    fold="\d+",
-#     model="[a-z]+",
+    fold="\d+"
 
 rule all:
     input:
@@ -69,14 +63,16 @@ rule all:
         #        dataset=DATASETS, model=MODELS),
         # expand("data/temp/{dataset}/ensembles_res/res.csv",
         #        dataset=DATASETS),
-        expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
+        #
+        # expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/box_plot.html", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/box_plot_manova.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
-        "data/temp/all_datasets/tables/dataset_tables.html",
-        "data/temp/all_datasets/tables/areas_table.html"
+        # expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
+        #
+        # "data/temp/all_datasets/tables/dataset_tables.html",
+        # "data/temp/all_datasets/tables/areas_table.html"
 
 # search for common indices across all datasets (less indices due to sec + ter struc.)
 rule common_idx:
@@ -928,7 +924,8 @@ rule kappa_error_plot:
                 title="Count",
                 legend=alt.Legend(
                     gradientLength=90,
-                    values=[0, 1500, 3000, 4500]
+                    # values=[0, 1500, 3000, 4500]
+                    # values=[0, np.histogram2d(x=df_res.x, y=df_res.y, bins=45)[0].max()]
                 ),
                 scale=alt.Scale(scheme="greys")
             ),
