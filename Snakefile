@@ -847,7 +847,7 @@ rule kappa_error_plot:
             x=alt.X("x:Q", title="kappa", axis=None),
             y=alt.Y("y:Q", title="average pair-wise error", axis=alt.Axis(grid=False)),
             shape=alt.Shape(
-                "cat:N", title="Ensemble",
+                "cat:N", title="Pruning",
                 legend=alt.Legend(offset=-45)
             ),
             color=alt.condition(
