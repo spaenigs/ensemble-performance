@@ -20,34 +20,37 @@ from sklearn.tree import DecisionTreeClassifier
 from utils import get_csv_names
 from optimizer.ensemble import StackingClassifier, VotingClassifier
 
+from optimizer.optimization import BinaryMVO
+import optimizer.optimization.fitness_function as ff
+
 FOLDS = range(100)
 
 MODEL = {
     "lr": LogisticRegression(max_iter=1000),
-    "dt": DecisionTreeClassifier(),
-    "bayes": GaussianNB(),
-    "rf":  RandomForestClassifier()
+    # "dt": DecisionTreeClassifier(),
+    # "bayes": GaussianNB(),
+    # "rf":  RandomForestClassifier()
 }
 MODELS = list(MODEL.keys())
 
 META_MODEL = {
     "stacking": StackingClassifier(estimators=None),
-    "voting_soft": VotingClassifier(estimators=None, voting="soft"),
-    "voting_hard": VotingClassifier(estimators=None, voting="hard")
+    # "voting_soft": VotingClassifier(estimators=None, voting="soft"),
+    # "voting_hard": VotingClassifier(estimators=None, voting="hard")
 }
 META_MODELS = list(META_MODEL.keys())
 
 DATASETS = [
     # "avp_amppred",
-    # "amp_antibp2",
+    "amp_antibp2",
     # "isp_il10pred",
     # "cpp_mlcpp-complete",
     # "nep_neuropipred-complete",
     # "pip_pipel",
     # "aip_antiinflam-complete",
     # "acp_mlacp",
-    "atb_antitbp",
-    "hem_hemopi"
+    # "atb_antitbp",
+    # "hem_hemopi"
 ]
 
 N_ENCODINGS = None
@@ -57,6 +60,8 @@ wildcard_constraints:
 
 rule all:
     input:
+        expand("data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/{fold}.csv",
+               dataset=DATASETS, meta_model=META_MODELS, model=MODELS, fold=FOLDS[:1])
         # expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
         #        model=MODELS, dataset=DATASETS),
         # expand("data/temp/{dataset}/areas/{model}/res.csv",
@@ -65,10 +70,10 @@ rule all:
         #        dataset=DATASETS),
         #
         # expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
-        expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/vis/box_plot.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/vis/box_plot_manova.html", dataset=DATASETS),
+        # expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
+        # expand("data/temp/{dataset}/vis/box_plot.html", dataset=DATASETS),
+        # expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
+        # expand("data/temp/{dataset}/vis/box_plot_manova.html", dataset=DATASETS),
         # expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
         #
         # "data/temp/all_datasets/tables/dataset_tables.html",
@@ -641,6 +646,94 @@ rule combine_point_data:
         df_res = pd.concat([df_res, df_tmp])
 
         df_res.to_csv(output[0])
+
+rule ensemble_mvo:
+    input:
+        "data/temp/{dataset}/mcv_folds_train.csv",
+        "data/temp/{dataset}/mcv_folds_test.csv",
+        "data/temp/{dataset}/kappa_error_all/{model}/{fold}.csv"
+    output:
+        "data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/{fold}.csv",
+        "data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/kappa_error_{fold}.csv"
+    run:
+        # use complete for MVO inner cv
+        df_indcs_train = pd.read_csv(input[0],index_col=0)
+        indcs_train = df_indcs_train[f"fold_{wildcards.fold}"]
+
+        # use for testing after optimization
+        df_indcs_test = pd.read_csv(input[1],index_col=0)
+        indcs_test = df_indcs_test[f"fold_{wildcards.fold}"]
+
+        df_points = pd.read_csv(input[2], index_col=0)
+
+        # y is average pairwise error
+        train_paths = list(set(
+            df_points[["encoding_1", "encoding_2"]] \
+                .values.flatten()
+        ))
+
+        # TODO move to end of workflow to avoid re-computing
+        # keep ensemble best encodings position for later usage
+        indices = df_points.sort_values("y").iloc[:15, :].index
+        df_points["ensemble_best"] = False
+        df_points.iloc[indices, df_points.columns.get_loc("ensemble_best")] = True
+
+        n_universes = 2
+        max_generations = 2
+
+        p_0 = 6 / len(train_paths)
+        mvo = BinaryMVO(
+            n_universes=n_universes,
+            d=len(train_paths),
+            f=ff.train_ensemble,
+            f_args={
+                "paths_to_encoded_datasets": train_paths,
+                "train_index": indcs_train,
+                "base_clf": MODEL[wildcards.model],
+                "meta_clf": META_MODEL[wildcards.meta_model]
+            },
+            p=[p_0, 1 - p_0],
+            funker_name=None,
+            new_random_state_each_generation=False,
+            n_jobs=n_universes
+        )
+
+        best_solution, _ = mvo.run(0, max_iterations=max_generations, parallel=True)
+
+        train_paths_best = np.array(train_paths)[np.nonzero(best_solution)[0]]
+        encoded_datasets = [pd.read_csv(p, index_col=0) for p in train_paths_best]
+
+        X_train_list, X_test_list = \
+            [df.loc[indcs_train, :].iloc[:, :-1].values
+             for df in encoded_datasets], \
+            [df.loc[indcs_test, :].iloc[:, :-1].values
+             for df in encoded_datasets]
+
+        y_train, y_test = \
+            encoded_datasets[0].loc[indcs_train, "y"].values, \
+            encoded_datasets[0].loc[indcs_test, "y"].values
+
+        clf = MODEL[wildcards.model]
+        eclf = META_MODEL[wildcards.meta_model]
+        eclf.estimators = [(train_paths[i], clf) for i in range(len(train_paths_best))]
+
+        try:
+            eclf.fit(X_train_list, y_train)
+            y_pred = eclf.predict(X_test_list)
+            mcc = matthews_corrcoef(y_test,y_pred)
+        except np.linalg.LinAlgError as e:
+            print(e)
+        except ValueError as e:
+            print(e)
+
+        pd.DataFrame({
+            "mcc": [mcc],
+            "fold": [wildcards.fold],
+            "model": [wildcards.model],
+            "meta_model": [wildcards.meta_model]
+        }).to_csv(output[0])
+
+        df_points.to_csv(output[1])
 
 rule collect_areas:
     input:

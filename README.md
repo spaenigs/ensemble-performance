@@ -1,2 +1,2 @@
 # ensemble-performance
-Performance analyses of classifier ensembles onpeptide encodings
+Performance analyses of classifier ensembles on peptide encodings
