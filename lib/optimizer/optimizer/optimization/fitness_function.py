@@ -17,18 +17,18 @@ def train_ensemble(
     if len(paths) > 11 or len(paths) <= 1:
         mcc = 0.0
     else:
-        encoded_datasets = [pd.read_csv(p, index_col=0) for p in paths]
-        X_list = \
-            [df.loc[train_index, :].iloc[:, :-1].values
-             for df in encoded_datasets]
-        y = encoded_datasets[0].loc[train_index, "y"].values
+        encoded_datasets = \
+            [pd.read_csv(p, index_col=0).loc[train_index, :]
+             for p in paths]
+        X = encoded_datasets[0].iloc[:, :-1].values
+        y = encoded_datasets[0]["y"].values
         mcc = 0
         rkf = RepeatedStratifiedKFold(n_repeats=1, n_splits=5)
-        for train_index, test_index in rkf.split(X_list[0], y):
+        for train_index_i, test_index_i in rkf.split(X, y):
             X_train_list, X_test_list = \
-                [df.iloc[train_index, :-1].values for df in encoded_datasets], \
-                [df.iloc[test_index, :-1].values for df in encoded_datasets]
-            y_train, y_test = y[train_index], y[test_index]
+                [df.iloc[train_index_i, :-1].values for df in encoded_datasets], \
+                [df.iloc[test_index_i, :-1].values for df in encoded_datasets]
+            y_train, y_test = y[train_index_i], y[test_index_i]
             meta_clf.estimators = [(paths[i], base_clf) for i in range(len(paths))]
             meta_clf.n_jobs = 1
             try:
@@ -45,4 +45,4 @@ def train_ensemble(
                 mcc += 0
             else:
                 mcc += mcc_
-    return 1 - (mcc / 5), {"mcc": mcc/5}
+    return 1 - (mcc/5), {"mcc": mcc/5}
