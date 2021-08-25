@@ -60,8 +60,6 @@ wildcard_constraints:
 
 rule all:
     input:
-        expand("data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/{fold}.csv",
-               dataset=DATASETS, meta_model=META_MODELS, model=MODELS, fold=FOLDS[:1])
         # expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
         #        model=MODELS, dataset=DATASETS),
         # expand("data/temp/{dataset}/areas/{model}/res.csv",
@@ -69,15 +67,16 @@ rule all:
         # expand("data/temp/{dataset}/ensembles_res/res.csv",
         #        dataset=DATASETS),
         #
-        # expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
-        # expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
-        # expand("data/temp/{dataset}/vis/box_plot.html", dataset=DATASETS),
-        # expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
-        # expand("data/temp/{dataset}/vis/box_plot_manova.html", dataset=DATASETS),
-        # expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
+        expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
+        expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
+        expand("data/temp/{dataset}/vis/box_plot.html", dataset=DATASETS),
+        expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
+        expand("data/temp/{dataset}/vis/box_plot_manova.html", dataset=DATASETS),
+        expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
         #
         # "data/temp/all_datasets/tables/dataset_tables.html",
         # "data/temp/all_datasets/tables/areas_table.html"
+
 
 # search for common indices across all datasets (less indices due to sec + ter struc.)
 rule common_idx:
@@ -628,25 +627,6 @@ rule ensemble_pfront:
 
         df_points.to_csv(output[1])
 
-rule combine_point_data:
-    input:
-        "data/temp/{dataset}/ensemble_bst/{meta_model}/{model}/kappa_error_{fold}.csv",
-        "data/temp/{dataset}/ensemble_rnd/{meta_model}/{model}/kappa_error_{fold}.csv",
-        "data/temp/{dataset}/ensemble_chull/{meta_model}/{model}/kappa_error_{fold}.csv",
-        "data/temp/{dataset}/ensemble_pfront/{meta_model}/{model}/kappa_error_{fold}.csv"
-    output:
-        "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold}.csv"
-    run:
-        df_res = pd.concat([pd.read_csv(p, index_col=0) for p in list(input)], axis=1, join="inner")
-        df_res = df_res.loc[:, ~df_res.columns.duplicated()].copy()
-
-        # close the path
-        df_tmp = df_res.loc[df_res.chull_complete == 0].copy()
-        df_tmp["chull_complete"] = df_res.chull_complete.sort_values(ascending=False).unique()[0] + 1
-        df_res = pd.concat([df_res, df_tmp])
-
-        df_res.to_csv(output[0])
-
 rule ensemble_mvo:
     input:
         "data/temp/{dataset}/mcv_folds_train.csv",
@@ -655,6 +635,8 @@ rule ensemble_mvo:
     output:
         "data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/{fold}.csv",
         "data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/kappa_error_{fold}.csv"
+    threads:
+        1000
     run:
         # use complete for MVO inner cv
         df_indcs_train = pd.read_csv(input[0],index_col=0)
@@ -671,12 +653,6 @@ rule ensemble_mvo:
             df_points[["encoding_1", "encoding_2"]] \
                 .values.flatten()
         ))
-
-        # TODO move to end of workflow to avoid re-computing
-        # keep ensemble best encodings position for later usage
-        indices = df_points.sort_values("y").iloc[:15, :].index
-        df_points["ensemble_best"] = False
-        df_points.iloc[indices, df_points.columns.get_loc("ensemble_best")] = True
 
         n_universes = 2
         max_generations = 2
@@ -701,6 +677,15 @@ rule ensemble_mvo:
         best_solution, _ = mvo.run(0, max_iterations=max_generations, parallel=True)
 
         train_paths_best = np.array(train_paths)[np.nonzero(best_solution)[0]]
+
+        # keep ensemble best encodings position for later usage
+        indices = df_points.loc[
+            df_points.encoding_1.isin(train_paths_best) &
+            df_points.encoding_2.isin(train_paths_best)
+        ].index
+        df_points["ensemble_mvo"] = False
+        df_points.iloc[indices, df_points.columns.get_loc("ensemble_mvo")] = True
+
         encoded_datasets = [pd.read_csv(p, index_col=0) for p in train_paths_best]
 
         X_train_list, X_test_list = \
@@ -734,6 +719,36 @@ rule ensemble_mvo:
         }).to_csv(output[0])
 
         df_points.to_csv(output[1])
+
+rule combine_point_data:
+    input:
+        "data/temp/{dataset}/ensemble_bst/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_rnd/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_chull/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_pfront/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/kappa_error_{fold}.csv"
+    output:
+        "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold}.csv"
+    run:
+        df_res = pd.concat([pd.read_csv(p, index_col=0) for p in list(input)], axis=1, join="inner")
+        df_res = df_res.loc[:, ~df_res.columns.duplicated()].copy()
+
+        # close the path
+        df_tmp = df_res.loc[df_res.chull_complete == 0].copy()
+        df_tmp["chull_complete"] = df_res.chull_complete.sort_values(ascending=False).unique()[0] + 1
+        df_res = pd.concat([df_res, df_tmp])
+
+        df_res.to_csv(output[0])
+
+rule remove_mvo_from_point_data:
+    input:
+        "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold}.csv"
+    output:
+        "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold}_wo_mvo.csv"
+    run:
+        df = pd.read_csv(input[0], index_col=0)
+        df.drop("ensemble_mvo", axis=1, inplace=True)
+        df.to_csv(output[0])
 
 rule collect_areas:
     input:
@@ -839,6 +854,10 @@ rule collect_ensembles:
             expand(f"data/temp/{wildcards.dataset}/ensemble_pfront/"
                    f"{wildcards.meta_model}/{wildcards.model}/{{fold}}.csv",
                    fold=FOLDS),
+        mvo= lambda wildcards:
+            expand(f"data/temp/{wildcards.dataset}/ensemble_mvo/"
+                   f"{wildcards.meta_model}/{wildcards.model}/{{fold}}.csv",
+                   fold=FOLDS),
         single_best=
             "data/temp/{dataset}/ensemble_bst/{meta_model}/{model}/single_best_enc.csv",
         rand_single_best=
@@ -877,9 +896,19 @@ rule collect_all:
 
         df_res.reset_index(drop=True).to_csv(output[0])
 
-rule critical_difference:
+rule collect_all_remove_mvo:
     input:
         "data/temp/{dataset}/ensembles_res/res.csv"
+    output:
+        "data/temp/{dataset}/ensembles_res/res_wo_mvo.csv"
+    run:
+        df = pd.read_csv(input[0], index_col=0)
+        df.drop(df.loc[df.cat == "mvo"].index, inplace=True)
+        df.to_csv(output[0])
+
+rule critical_difference:
+    input:
+        "data/temp/{dataset}/ensembles_res/res_wo_mvo.csv"
     output:
         "data/temp/{dataset}/ensembles_res/cd.yaml"
     script:
@@ -900,6 +929,7 @@ rule kappa_error_plot_data:
                 path = [p for p in list(input) if f"/{m}/" in p and f"/{f}.csv" in p][0]
                 df_tmp = pd.read_csv(path, index_col=0)
                 filter_ = (
+                        df_tmp.ensemble_mvo |
                         df_tmp.ensemble_best |
                         df_tmp.ensemble_rand |
                         df_tmp.ensemble_chull |
@@ -916,6 +946,7 @@ rule kappa_error_plot_data:
 
         df_res["cat"] = df_res.apply(
             lambda row:
+                "mvo" if row.ensemble_mvo else
                 "chull" if row.ensemble_chull else
                 "pfront" if row.ensemble_pfront else
                 "best" if row.ensemble_best else
@@ -925,6 +956,17 @@ rule kappa_error_plot_data:
         )
 
         df_res.to_csv(output[0])
+
+rule remove_mvo_kappa_error_plot_data:
+    input:
+        "data/temp/{dataset}/kappa_error_res/plot_data.csv"
+    output:
+        "data/temp/{dataset}/kappa_error_res/plot_data_wo_mvo.csv"
+    run:
+        df = pd.read_csv(input[0],index_col=0)
+        df.drop(df.loc[df.cat == "mvo"].index, inplace=True)
+        df.drop("ensemble_mvo", axis=1, inplace=True)
+        df.to_csv(output[0])
 
 rule kappa_error_plot:
     input:
@@ -1083,9 +1125,7 @@ rule box_plot:
 rule xcd_plot:
     input:
         "data/temp/{dataset}/ensembles_res/cd.yaml",
-        lambda wildcards:
-            expand(f"data/temp/{wildcards.dataset}/ensembles_res/{{meta_model}}/{{model}}/res.csv",
-                   meta_model=META_MODELS, model=MODELS)
+        "data/temp/{dataset}/ensembles_res/res.csv"
     output:
         "data/temp/{dataset}/vis/xcd_plot.html"
     run:
@@ -1094,10 +1134,7 @@ rule xcd_plot:
         with open(input[0]) as f:
             cd_data = yaml.safe_load(f)
 
-        df_res = pd.DataFrame()
-        for p in list(input[1:]):
-            df_tmp = pd.read_csv(p, index_col=0)
-            df_res = pd.concat([df_res, df_tmp])
+        df_res = pd.read_csv(input[1], index_col=0)
 
         xcd_chart = XCDChart(ensemble_data=df_res, cd_data=cd_data)
         xcd_chart.save(output[0])
@@ -1114,6 +1151,7 @@ rule box_plot_manova:
         for m in df_res.model.unique():
             df_tmp = df_res.loc[df_res.model == m]
             df_tmp = df_tmp.loc[np.bitwise_not(
+                df_tmp.ensemble_mvo |
                 df_tmp.ensemble_best |
                 df_tmp.ensemble_rand |
                 df_tmp.ensemble_chull |
@@ -1143,7 +1181,7 @@ rule box_plot_manova:
 
 rule statistics:
     input:
-        "data/temp/{dataset}/kappa_error_res/plot_data.csv",
+        "data/temp/{dataset}/kappa_error_res/plot_data_wo_mvo.csv",
         lambda wildcards:
             expand(f"data/temp/{wildcards.dataset}/areas/{{model}}/res.csv", model=MODELS)
     output:
@@ -1194,9 +1232,9 @@ rule dataset_tables:
         def get_table(df_res):
 
             df_stats = df_res \
-                           .groupby(["dataset", "model", "cat", "meta_model"])["mcc"] \
-                           .describe().reset_index() \
-                           .loc[:, ['dataset', 'model', 'cat', 'meta_model', 'mean', 'std']]
+                .groupby(["dataset", "model", "cat", "meta_model"])["mcc"] \
+                .describe().reset_index() \
+                .loc[:, ['dataset', 'model', 'cat', 'meta_model', 'mean', 'std']]
 
             df_final = df_stats \
                 .groupby(["dataset", "cat"]) \
