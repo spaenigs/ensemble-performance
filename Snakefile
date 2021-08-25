@@ -655,8 +655,8 @@ rule ensemble_mvo:
                     .values.flatten()
             ))
 
-            n_universes = 2
-            max_generations = 2
+            n_universes = 32
+            max_generations = 15
 
             p_0 = 6 / len(train_paths)
             mvo = BinaryMVO(
@@ -731,6 +731,7 @@ def combine_point_data(lst_in):
     df_tmp = df_res.loc[df_res.chull_complete == 0].copy()
     df_tmp["chull_complete"] = df_res.chull_complete.sort_values(ascending=False).unique()[0] + 1
     df_res = pd.concat([df_res, df_tmp])
+    return df_res
 
 rule combine_point_data_0_4:
     input:
