@@ -935,7 +935,7 @@ rule kappa_error_plot_data:
                 path = [p for p in list(input) if f"/{m}/" in p and f"/{f}.csv" in p][0]
                 df_tmp = pd.read_csv(path, index_col=0)
                 filter_ = (
-                        df_tmp.ensemble_mvo |
+                        df_tmp.ensemble_mvo if "ensemble_mvo" in df_tmp.columns else False |
                         df_tmp.ensemble_best |
                         df_tmp.ensemble_rand |
                         df_tmp.ensemble_chull |
@@ -950,16 +950,19 @@ rule kappa_error_plot_data:
                 df_tmp["model"], df_tmp["fold"] = m, f
                 df_res = pd.concat([df_res, df_tmp])
 
-        df_res["cat"] = df_res.apply(
-            lambda row:
-                "mvo" if row.ensemble_mvo else
+        def check_mvo(row):
+            if "ensemble_mvo" in row:
+                if row.ensemble_mvo:
+                    return "mvo"
+            return (
                 "chull" if row.ensemble_chull else
                 "pfront" if row.ensemble_pfront else
                 "best" if row.ensemble_best else
                 "rand" if row.ensemble_rand else
                 "all"
-            , axis=1
-        )
+            )
+
+        df_res["cat"] = df_res.apply(check_mvo, axis=1)
 
         df_res.to_csv(output[0])
 
