@@ -934,13 +934,15 @@ rule kappa_error_plot_data:
             for f in FOLDS:
                 path = [p for p in list(input) if f"/{m}/" in p and f"/{f}.csv" in p][0]
                 df_tmp = pd.read_csv(path, index_col=0)
-                filter_ = (
-                        df_tmp.ensemble_mvo if "ensemble_mvo" in df_tmp.columns else False |
-                        df_tmp.ensemble_best |
-                        df_tmp.ensemble_rand |
-                        df_tmp.ensemble_chull |
-                        df_tmp.ensemble_pfront
-                )
+                filter_vals = [
+                    df_tmp.ensemble_best,
+                    df_tmp.ensemble_rand,
+                    df_tmp.ensemble_chull,
+                    df_tmp.ensemble_pfront
+                ]
+                if "ensemble_mvo" in df_tmp.columns:
+                    filter_vals.append(df_tmp.ensemble_mvo)
+                filter_ = reduce(lambda v1, v2: v1 | v2,filter_vals[:-1],filter_vals[-1])
                 df_tmp1 = df_tmp \
                     .loc[np.bitwise_not(filter_) & (df_tmp.chull_complete == -1)] \
                     .sample(1000).copy()
@@ -950,19 +952,15 @@ rule kappa_error_plot_data:
                 df_tmp["model"], df_tmp["fold"] = m, f
                 df_res = pd.concat([df_res, df_tmp])
 
-        def check_mvo(row):
-            if "ensemble_mvo" in row:
-                if row.ensemble_mvo:
-                    return "mvo"
-            return (
+        df_res["cat"] = df_res.apply(
+            lambda row:
+                "mvo" if row.ensemble_mvo else
                 "chull" if row.ensemble_chull else
                 "pfront" if row.ensemble_pfront else
                 "best" if row.ensemble_best else
                 "rand" if row.ensemble_rand else
                 "all"
-            )
-
-        df_res["cat"] = df_res.apply(check_mvo, axis=1)
+            , axis=1)
 
         df_res.to_csv(output[0])
 
