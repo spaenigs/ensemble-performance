@@ -7,6 +7,7 @@ import altair as alt
 import functools
 
 import yaml
+from functools import reduce
 from numpy.random import default_rng
 from scipy.spatial import ConvexHull
 from sklearn.ensemble import RandomForestClassifier
@@ -951,6 +952,8 @@ rule kappa_error_plot_data:
                 df_tmp = pd.concat([df_tmp1, df_tmp2])
                 df_tmp["model"], df_tmp["fold"] = m, f
                 df_res = pd.concat([df_res, df_tmp])
+
+        df_res.loc[df_res.ensemble_mvo.isna(), "ensemble_mvo"] = False
 
         df_res["cat"] = df_res.apply(
             lambda row:
