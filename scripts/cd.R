@@ -16,7 +16,7 @@ colnames(df_cats) <- gsub("mcc.", "", colnames(df_cats))
 
 # plotCD(results.matrix = df_cats, alpha = 0.05)
 
-ar_cats = sort(colMeans(rankMatrix(df_cats)))
+ar_cats <- sort(colMeans(rankMatrix(df_cats)))
 
 nm_cats <- nemenyiTest(df_cats)
 rownames(nm_cats$diff.matrix) <- colnames(nm_cats$diff.matrix)

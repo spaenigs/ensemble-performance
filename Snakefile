@@ -724,14 +724,14 @@ rule ensemble_mvo:
             for o in list(output):
                 pd.DataFrame().to_csv(o)
 
-def combine_point_data(lst_in):
+def combine_point_data(lst_in, file_out):
     df_res = pd.concat([pd.read_csv(p, index_col=0) for p in lst_in], axis=1, join="inner")
     df_res = df_res.loc[:, ~df_res.columns.duplicated()].copy()
     # close the path
     df_tmp = df_res.loc[df_res.chull_complete == 0].copy()
     df_tmp["chull_complete"] = df_res.chull_complete.sort_values(ascending=False).unique()[0] + 1
     df_res = pd.concat([df_res, df_tmp])
-    return df_res
+    df_res.to_csv(file_out)
 
 rule combine_point_data_0_4:
     input:
@@ -743,7 +743,7 @@ rule combine_point_data_0_4:
     output:
         "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold,[0-4]}.csv"
     run:
-        combine_point_data(list(input))
+        combine_point_data(list(input), output[0])
 
 rule combine_point_data_5_99:
     input:
@@ -754,7 +754,7 @@ rule combine_point_data_5_99:
     output:
         "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold,[5-9]|\d\d}.csv"
     run:
-        combine_point_data(list(input))
+        combine_point_data(list(input), output[0])
 
 rule collect_areas:
     input:
