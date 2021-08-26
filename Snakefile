@@ -68,12 +68,12 @@ rule all:
         # expand("data/temp/{dataset}/ensembles_res/res.csv",
         #        dataset=DATASETS),
         #
-        expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
+        # expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/box_plot.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
+        # expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/box_plot_manova.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
+        # expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
         #
         # "data/temp/all_datasets/tables/dataset_tables.html",
         # "data/temp/all_datasets/tables/areas_table.html"
@@ -639,91 +639,87 @@ rule ensemble_mvo:
     threads:
         1000
     run:
-        if int(wildcards.fold) < 5:
-            # use complete for MVO inner cv
-            df_indcs_train = pd.read_csv(input[0],index_col=0)
-            indcs_train = df_indcs_train[f"fold_{wildcards.fold}"]
+        # use complete for MVO inner cv
+        df_indcs_train = pd.read_csv(input[0], index_col=0)
+        indcs_train = df_indcs_train[f"fold_{wildcards.fold}"]
 
-            # use for testing after optimization
-            df_indcs_test = pd.read_csv(input[1],index_col=0)
-            indcs_test = df_indcs_test[f"fold_{wildcards.fold}"]
+        # use for testing after optimization
+        df_indcs_test = pd.read_csv(input[1], index_col=0)
+        indcs_test = df_indcs_test[f"fold_{wildcards.fold}"]
 
-            df_points = pd.read_csv(input[2], index_col=0)
+        df_points = pd.read_csv(input[2], index_col=0)
 
-            # y is average pairwise error
-            train_paths = list(set(
-                df_points[["encoding_1", "encoding_2"]] \
-                    .values.flatten()
-            ))
+        # y is average pairwise error
+        train_paths = list(set(
+            df_points[["encoding_1", "encoding_2"]] \
+                .values.flatten()
+        ))
 
-            n_universes = 32
-            max_generations = 15
+        n_universes = 32
+        max_generations = 15
 
-            p_0 = 6 / len(train_paths)
-            mvo = BinaryMVO(
-                n_universes=n_universes,
-                d=len(train_paths),
-                f=ff.train_ensemble,
-                f_args={
-                    "paths_to_encoded_datasets": train_paths,
-                    "train_index": indcs_train,
-                    "base_clf": MODEL[wildcards.model],
-                    "meta_clf": META_MODEL[wildcards.meta_model]
-                },
-                p=[p_0, 1 - p_0],
-                funker_name=None,
-                new_random_state_each_generation=False,
-                n_jobs=n_universes
-            )
+        p_0 = 6 / len(train_paths)
+        mvo = BinaryMVO(
+            n_universes=n_universes,
+            d=len(train_paths),
+            f=ff.train_ensemble,
+            f_args={
+                "paths_to_encoded_datasets": train_paths,
+                "train_index": indcs_train,
+                "base_clf": MODEL[wildcards.model],
+                "meta_clf": META_MODEL[wildcards.meta_model]
+            },
+            p=[p_0, 1 - p_0],
+            funker_name=None,
+            new_random_state_each_generation=False,
+            n_jobs=n_universes
+        )
 
-            best_solution, _ = mvo.run(0, max_iterations=max_generations, parallel=True)
+        best_solution, _ = mvo.run(0, max_iterations=max_generations, parallel=True)
 
-            train_paths_best = np.array(train_paths)[np.nonzero(best_solution)[0]]
+        train_paths_best = np.array(train_paths)[np.nonzero(best_solution)[0]]
 
-            # keep ensemble best encodings position for later usage
-            indices = df_points.loc[
-                df_points.encoding_1.isin(train_paths_best) &
-                df_points.encoding_2.isin(train_paths_best)
-            ].index
-            df_points["ensemble_mvo"] = False
-            df_points.iloc[indices, df_points.columns.get_loc("ensemble_mvo")] = True
+        # keep ensemble best encodings position for later usage
+        indices = df_points.loc[
+            df_points.encoding_1.isin(train_paths_best) &
+            df_points.encoding_2.isin(train_paths_best)
+        ].index
+        df_points["ensemble_mvo"] = False
+        df_points.iloc[indices, df_points.columns.get_loc("ensemble_mvo")] = True
 
-            encoded_datasets = [pd.read_csv(p, index_col=0) for p in train_paths_best]
+        encoded_datasets = [pd.read_csv(p, index_col=0) for p in train_paths_best]
 
-            X_train_list, X_test_list = \
-                [df.loc[indcs_train, :].iloc[:, :-1].values
-                 for df in encoded_datasets], \
-                [df.loc[indcs_test, :].iloc[:, :-1].values
-                 for df in encoded_datasets]
+        X_train_list, X_test_list = \
+            [df.loc[indcs_train, :].iloc[:, :-1].values
+             for df in encoded_datasets], \
+            [df.loc[indcs_test, :].iloc[:, :-1].values
+             for df in encoded_datasets]
 
-            y_train, y_test = \
-                encoded_datasets[0].loc[indcs_train, "y"].values, \
-                encoded_datasets[0].loc[indcs_test, "y"].values
+        y_train, y_test = \
+            encoded_datasets[0].loc[indcs_train, "y"].values, \
+            encoded_datasets[0].loc[indcs_test, "y"].values
 
-            clf = MODEL[wildcards.model]
-            eclf = META_MODEL[wildcards.meta_model]
-            eclf.estimators = [(train_paths[i], clf) for i in range(len(train_paths_best))]
+        clf = MODEL[wildcards.model]
+        eclf = META_MODEL[wildcards.meta_model]
+        eclf.estimators = [(train_paths[i], clf) for i in range(len(train_paths_best))]
 
-            try:
-                eclf.fit(X_train_list, y_train)
-                y_pred = eclf.predict(X_test_list)
-                mcc = matthews_corrcoef(y_test,y_pred)
-            except np.linalg.LinAlgError as e:
-                print(e)
-            except ValueError as e:
-                print(e)
+        try:
+            eclf.fit(X_train_list, y_train)
+            y_pred = eclf.predict(X_test_list)
+            mcc = matthews_corrcoef(y_test,y_pred)
+        except np.linalg.LinAlgError as e:
+            print(e)
+        except ValueError as e:
+            print(e)
 
-            pd.DataFrame({
-                "mcc": [mcc],
-                "fold": [wildcards.fold],
-                "model": [wildcards.model],
-                "meta_model": [wildcards.meta_model]
-            }).to_csv(output[0])
+        pd.DataFrame({
+            "mcc": [mcc],
+            "fold": [wildcards.fold],
+            "model": [wildcards.model],
+            "meta_model": [wildcards.meta_model]
+        }).to_csv(output[0])
 
-            df_points.to_csv(output[1])
-        else:
-            for o in list(output):
-                pd.DataFrame().to_csv(o)
+        df_points.to_csv(output[1])
 
 def combine_point_data(lst_in, file_out):
     df_res = pd.concat([pd.read_csv(p, index_col=0) for p in lst_in], axis=1, join="inner")
@@ -943,7 +939,11 @@ rule kappa_error_plot_data:
                 ]
                 if "ensemble_mvo" in df_tmp.columns:
                     filter_vals.append(df_tmp.ensemble_mvo)
-                filter_ = reduce(lambda v1, v2: v1 | v2,filter_vals[:-1],filter_vals[-1])
+                filter_ = reduce(
+                    lambda v1, v2: v1 | v2,
+                    filter_vals[:-1],
+                    filter_vals[-1]
+                )
                 df_tmp1 = df_tmp \
                     .loc[np.bitwise_not(filter_) & (df_tmp.chull_complete == -1)] \
                     .sample(1000).copy()
@@ -973,7 +973,7 @@ rule remove_mvo_kappa_error_plot_data:
     output:
         "data/temp/{dataset}/kappa_error_res/plot_data_wo_mvo.csv"
     run:
-        df = pd.read_csv(input[0],index_col=0)
+        df = pd.read_csv(input[0], index_col=0)
         df.drop(df.loc[df.cat == "mvo"].index, inplace=True)
         df.drop("ensemble_mvo", axis=1, inplace=True)
         df.to_csv(output[0])
@@ -986,9 +986,7 @@ rule kappa_error_plot:
     run:
         df_res = pd.read_csv(input[0], index_col=0)
 
-        scatter = alt.Chart().mark_point(
-            filled=True,color="gray"
-        ).encode(
+        scatter = alt.Chart().mark_point(filled=True).encode(
             x=alt.X("x:Q", title="kappa", axis=None),
             y=alt.Y("y:Q", title="average pair-wise error", axis=alt.Axis(grid=False)),
             shape=alt.Shape(
@@ -1003,7 +1001,12 @@ rule kappa_error_plot:
             size=alt.condition(
                 alt.datum.cat == "all",
                 alt.value(5),
-                alt.value(45)
+                alt.value(65)
+            ),
+            opacity=alt.condition(
+                alt.datum.cat == "all",
+                alt.value(0.3),
+                alt.value(0.7)
             )
         ).properties(
             width=200,
