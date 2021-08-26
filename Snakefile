@@ -28,22 +28,22 @@ FOLDS = range(100)
 
 MODEL = {
     "lr": LogisticRegression(max_iter=1000),
-    # "dt": DecisionTreeClassifier(),
-    # "bayes": GaussianNB(),
-    # "rf":  RandomForestClassifier()
+    "dt": DecisionTreeClassifier(),
+    "bayes": GaussianNB(),
+    "rf":  RandomForestClassifier()
 }
 MODELS = list(MODEL.keys())
 
 META_MODEL = {
     "stacking": StackingClassifier(estimators=None),
-    # "voting_soft": VotingClassifier(estimators=None, voting="soft"),
-    # "voting_hard": VotingClassifier(estimators=None, voting="hard")
+    "voting_soft": VotingClassifier(estimators=None, voting="soft"),
+    "voting_hard": VotingClassifier(estimators=None, voting="hard")
 }
 META_MODELS = list(META_MODEL.keys())
 
 DATASETS = [
     # "avp_amppred",
-    "amp_antibp2",
+    # "amp_antibp2",
     # "isp_il10pred",
     # "cpp_mlcpp-complete",
     # "nep_neuropipred-complete",
@@ -68,12 +68,12 @@ rule all:
         # expand("data/temp/{dataset}/ensembles_res/res.csv",
         #        dataset=DATASETS),
         #
-        # expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
+        expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/box_plot.html", dataset=DATASETS),
-        # expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
+        expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/box_plot_manova.html", dataset=DATASETS),
-        # expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
+        expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
         #
         # "data/temp/all_datasets/tables/dataset_tables.html",
         # "data/temp/all_datasets/tables/areas_table.html"
