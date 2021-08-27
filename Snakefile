@@ -1138,7 +1138,7 @@ rule box_plot:
 rule xcd_plot:
     input:
         "data/temp/{dataset}/ensembles_res/cd.yaml",
-        "data/temp/{dataset}/ensembles_res/res.csv"
+        "data/temp/{dataset}/ensembles_res/res_wo_mvo.csv"
     output:
         "data/temp/{dataset}/vis/xcd_plot.html"
     run:
