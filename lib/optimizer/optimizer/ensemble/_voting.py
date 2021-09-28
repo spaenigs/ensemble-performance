@@ -1,3 +1,6 @@
+# Adapted from https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/ensemble/_voting.py
+
+
 from abc import abstractmethod
 from joblib import Parallel, delayed
 from sklearn.base import ClassifierMixin, clone

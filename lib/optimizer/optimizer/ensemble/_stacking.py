@@ -1,3 +1,5 @@
+# Adaptd from https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/ensemble/_stacking.py
+
 from copy import deepcopy
 from joblib import Parallel, delayed
 from sklearn.base import ClassifierMixin, is_classifier, clone

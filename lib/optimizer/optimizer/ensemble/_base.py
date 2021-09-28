@@ -1,3 +1,5 @@
+# Adapted from https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/ensemble/_base.py
+
 from sklearn.utils import _print_elapsed_time
 
 

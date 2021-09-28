@@ -1,4 +1,6 @@
-from sklearn.ensemble._base import _set_random_states, _partition_estimators
+# Adapted from https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/ensemble/_forest.py
+
+from sklearn.ensemble._base import _partition_estimators
 from sklearn.ensemble._forest import _get_n_samples_bootstrap, _parallel_build_trees, ForestClassifier, \
     _accumulate_prediction
 from sklearn.exceptions import DataConversionWarning
@@ -10,47 +12,12 @@ from sklearn.tree import DecisionTreeClassifier
 from warnings import warn
 from joblib import Parallel
 from scipy.sparse import issparse
-from sklearn import clone
 
 import numpy as np
 
 import threading
 
 MAX_INT = np.iinfo(np.int32).max
-
-
-# class _DecisionTreeClassifier(DecisionTreeClassifier):
-#
-#     def __init__(self, *,
-#                  encoded_dataset_name=None,
-#                  criterion="gini",
-#                  splitter="best",
-#                  max_depth=None,
-#                  min_samples_split=2,
-#                  min_samples_leaf=1,
-#                  min_weight_fraction_leaf=0.,
-#                  max_features=None,
-#                  random_state=None,
-#                  max_leaf_nodes=None,
-#                  min_impurity_decrease=0.,
-#                  min_impurity_split=None,
-#                  class_weight=None,
-#                  ccp_alpha=0.0):
-#         super().__init__(
-#             criterion=criterion,
-#             splitter=splitter,
-#             max_depth=max_depth,
-#             min_samples_split=min_samples_split,
-#             min_samples_leaf=min_samples_leaf,
-#             min_weight_fraction_leaf=min_weight_fraction_leaf,
-#             max_features=max_features,
-#             max_leaf_nodes=max_leaf_nodes,
-#             class_weight=class_weight,
-#             random_state=random_state,
-#             min_impurity_decrease=min_impurity_decrease,
-#             min_impurity_split=min_impurity_split,
-#             ccp_alpha=ccp_alpha)
-#         self.encoded_dataset_name = encoded_dataset_name
 
 
 class RandomForestClassifier(ForestClassifier):
