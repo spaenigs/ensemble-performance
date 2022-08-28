@@ -31,11 +31,11 @@ import optimizer.optimization.fitness_function as ff
 FOLDS = range(6)#100)
 
 MODEL = {
-    # "lr": LogisticRegression(max_iter=1000),
+    # "lr": LogisticRegression(),
     # "dt": DecisionTreeClassifier(),
     # "bayes": GaussianNB(),
     # "rf":  RandomForestClassifier(),
-    "mlp": MLPClassifier(max_iter=1000)
+    "mlp": MLPClassifier()
 }
 MODELS = list(MODEL.keys())
 
@@ -66,12 +66,18 @@ wildcard_constraints:
 
 rule all:
     input:
+        expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
+            model=MODELS,dataset=DATASETS),
         expand("data/temp/{dataset}/kappa_error_all/{model}/{fold}.csv",
             dataset=DATASETS, model=MODELS,
                fold=FOLDS),
-
         expand("data/temp/{dataset}/ensembles_res/{meta_model}/{model}/res.csv",
                dataset=DATASETS, meta_model=META_MODELS, model=MODELS),
+        expand("data/temp/{dataset}/areas/{model}/res.csv",
+               dataset=DATASETS, model=MODELS),
+        expand("data/temp/{dataset}/ensembles_res/res.csv",
+            dataset=DATASETS),
+        expand("data/temp/{dataset}/kappa_error_res/plot_data.csv", dataset=DATASETS)
 
         # expand("data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/gens_vs_perf_{fold}.txt",
         #        dataset=DATASETS, meta_model=META_MODELS, model=MODELS,
@@ -82,12 +88,8 @@ rule all:
         #
         # ),
         # expand("data/temp/{dataset}/vis/gen_vs_perf.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
-               model=MODELS, dataset=DATASETS),
-        # expand("data/temp/{dataset}/areas/{model}/res.csv",
-        #        dataset=DATASETS, model=MODELS),
-        # expand("data/temp/{dataset}/ensembles_res/res.csv",
-        #        dataset=DATASETS),
+
+
         #
         # expand("data/temp/{dataset}/ensembles_res/cd.yaml", dataset=DATASETS),
         # expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
@@ -245,9 +247,6 @@ rule collect_single_encodings:
         for p in list(input):
             df_tmp = pd.read_csv(p, index_col=0)
             df_res = pd.concat([df_res, df_tmp])
-
-        import pydevd_pycharm
-        pydevd_pycharm.settrace('localhost',port=8888,stdoutToServer=True,stderrToServer=True)
 
         for csv_name in get_csv_names(wildcards.dataset):
             print(df_res.groupby("encoding").apply(lambda df: df.mcc.mean()))
@@ -809,37 +808,37 @@ rule ensemble_mvo:
         df_points.to_csv(output[1])
 
 
-# def combine_point_data(lst_in, file_out):
-#     df_res = pd.concat([pd.read_csv(p, index_col=0) for p in lst_in], axis=1, join="inner")
-#     df_res = df_res.loc[:, ~df_res.columns.duplicated()].copy()
-#     # close the path
-#     df_tmp = df_res.loc[df_res.chull_complete == 0].copy()
-#     df_tmp["chull_complete"] = df_res.chull_complete.sort_values(ascending=False).unique()[0] + 1
-#     df_res = pd.concat([df_res, df_tmp])
-#     df_res.to_csv(file_out)
+def combine_point_data(lst_in, file_out):
+    df_res = pd.concat([pd.read_csv(p, index_col=0) for p in lst_in], axis=1, join="inner")
+    df_res = df_res.loc[:, ~df_res.columns.duplicated()].copy()
+    # close the path
+    df_tmp = df_res.loc[df_res.chull_complete == 0].copy()
+    df_tmp["chull_complete"] = df_res.chull_complete.sort_values(ascending=False).unique()[0] + 1
+    df_res = pd.concat([df_res, df_tmp])
+    df_res.to_csv(file_out)
 #
-# rule combine_point_data_0_4:
-#     input:
-#         "data/temp/{dataset}/ensemble_bst/{meta_model}/{model}/kappa_error_{fold}.csv",
-#         "data/temp/{dataset}/ensemble_rnd/{meta_model}/{model}/kappa_error_{fold}.csv",
-#         "data/temp/{dataset}/ensemble_chull/{meta_model}/{model}/kappa_error_{fold}.csv",
-#         "data/temp/{dataset}/ensemble_pfront/{meta_model}/{model}/kappa_error_{fold}.csv",
-#         "data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/kappa_error_{fold}.csv"
-#     output:
-#         "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold,[0-4]}.csv"
-#     run:
-#         combine_point_data(list(input), output[0])
+rule combine_point_data_0_4:
+    input:
+        "data/temp/{dataset}/ensemble_bst/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_rnd/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_chull/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_pfront/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_mvo/{meta_model}/{model}/kappa_error_{fold}.csv"
+    output:
+        "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold,[0-4]}.csv"
+    run:
+        combine_point_data(list(input), output[0])
 
-# rule combine_point_data_5_99:
-#     input:
-#         "data/temp/{dataset}/ensemble_bst/{meta_model}/{model}/kappa_error_{fold}.csv",
-#         "data/temp/{dataset}/ensemble_rnd/{meta_model}/{model}/kappa_error_{fold}.csv",
-#         "data/temp/{dataset}/ensemble_chull/{meta_model}/{model}/kappa_error_{fold}.csv",
-#         "data/temp/{dataset}/ensemble_pfront/{meta_model}/{model}/kappa_error_{fold}.csv"
-#     output:
-#         "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold,[5-9]|\d\d}.csv"
-#     run:
-#         combine_point_data(list(input), output[0])
+rule combine_point_data_5_99:
+    input:
+        "data/temp/{dataset}/ensemble_bst/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_rnd/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_chull/{meta_model}/{model}/kappa_error_{fold}.csv",
+        "data/temp/{dataset}/ensemble_pfront/{meta_model}/{model}/kappa_error_{fold}.csv"
+    output:
+        "data/temp/{dataset}/kappa_error_res/{meta_model}/{model}/{fold,[5-9]|\d\d}.csv"
+    run:
+        combine_point_data(list(input), output[0])
 
 # since encodings in best ensemble can vary across folds
 # find the best common one across all folds
@@ -973,15 +972,15 @@ rule collect_all:
 
         df_res.reset_index(drop=True).to_csv(output[0])
 
-rule collect_all_remove_mvo:
-    input:
-        "data/temp/{dataset}/ensembles_res/res.csv"
-    output:
-        "data/temp/{dataset}/ensembles_res/res_wo_mvo.csv"
-    run:
-        df = pd.read_csv(input[0], index_col=0)
-        df.drop(df.loc[df.cat == "mvo"].index, inplace=True)
-        df.to_csv(output[0])
+# rule collect_all_remove_mvo:
+#     input:
+#         "data/temp/{dataset}/ensembles_res/res.csv"
+#     output:
+#         "data/temp/{dataset}/ensembles_res/res_wo_mvo.csv"
+#     run:
+#         df = pd.read_csv(input[0], index_col=0)
+#         df.drop(df.loc[df.cat == "mvo"].index, inplace=True)
+#         df.to_csv(output[0])
 
 rule critical_difference:
     input:
@@ -1032,56 +1031,56 @@ rule critical_difference:
 #             row=alt.Row("mmodel:N",title="Ensemble")
 #         ).save(output[0])
 #
-# rule kappa_error_plot_data:
-#     input:
-#         lambda wildcards:
-#             expand(f"data/temp/{wildcards.dataset}/kappa_error_res/stacking/{{model}}/{{fold}}.csv",
-#                    fold=FOLDS, model=MODELS)
-#     output:
-#         "data/temp/{dataset}/kappa_error_res/plot_data.csv"
-#     run:
-#         # we use only one ensemble method here, because it does not influence the kappa-error values
-#         df_res = pd.DataFrame()
-#         for m in MODELS:
-#             for f in FOLDS:
-#                 path = [p for p in list(input) if f"/{m}/" in p and f"/{f}.csv" in p][0]
-#                 df_tmp = pd.read_csv(path, index_col=0)
-#                 filter_vals = [
-#                     df_tmp.ensemble_best,
-#                     df_tmp.ensemble_rand,
-#                     df_tmp.ensemble_chull,
-#                     df_tmp.ensemble_pfront
-#                 ]
-#                 if "ensemble_mvo" in df_tmp.columns:
-#                     filter_vals.append(df_tmp.ensemble_mvo)
-#                 filter_ = reduce(
-#                     lambda v1, v2: v1 | v2,
-#                     filter_vals[:-1],
-#                     filter_vals[-1]
-#                 )
-#                 df_tmp1 = df_tmp \
-#                     .loc[np.bitwise_not(filter_) & (df_tmp.chull_complete == -1)] \
-#                     .sample(1000).copy()
-#                 df_tmp2 = df_tmp \
-#                     .loc[filter_ | (df_tmp.chull_complete != -1)].copy()
-#                 df_tmp = pd.concat([df_tmp1, df_tmp2])
-#                 df_tmp["model"], df_tmp["fold"] = m, f
-#                 df_res = pd.concat([df_res, df_tmp])
-#
-#         df_res.loc[df_res.ensemble_mvo.isna(), "ensemble_mvo"] = False
-#
-#         df_res["cat"] = df_res.apply(
-#             lambda row:
-#                 "mvo" if row.ensemble_mvo else
-#                 "chull" if row.ensemble_chull else
-#                 "pfront" if row.ensemble_pfront else
-#                 "best" if row.ensemble_best else
-#                 "rand" if row.ensemble_rand else
-#                 "all"
-#             , axis=1)
-#
-#         df_res.to_csv(output[0])
-#
+rule kappa_error_plot_data:
+    input:
+        lambda wildcards:
+            expand(f"data/temp/{wildcards.dataset}/kappa_error_res/stacking/{{model}}/{{fold}}.csv",
+                   fold=FOLDS, model=MODELS)
+    output:
+        "data/temp/{dataset}/kappa_error_res/plot_data.csv"
+    run:
+        # we use only one ensemble method here, because it does not influence the kappa-error values
+        df_res = pd.DataFrame()
+        for m in MODELS:
+            for f in FOLDS:
+                path = [p for p in list(input) if f"/{m}/" in p and f"/{f}.csv" in p][0]
+                df_tmp = pd.read_csv(path, index_col=0)
+                filter_vals = [
+                    df_tmp.ensemble_best,
+                    df_tmp.ensemble_rand,
+                    df_tmp.ensemble_chull,
+                    df_tmp.ensemble_pfront
+                ]
+                if "ensemble_mvo" in df_tmp.columns:
+                    filter_vals.append(df_tmp.ensemble_mvo)
+                filter_ = reduce(
+                    lambda v1, v2: v1 | v2,
+                    filter_vals[:-1],
+                    filter_vals[-1]
+                )
+                df_tmp1 = df_tmp \
+                    .loc[np.bitwise_not(filter_) & (df_tmp.chull_complete == -1)] \
+                    .sample(1000).copy()
+                df_tmp2 = df_tmp \
+                    .loc[filter_ | (df_tmp.chull_complete != -1)].copy()
+                df_tmp = pd.concat([df_tmp1, df_tmp2])
+                df_tmp["model"], df_tmp["fold"] = m, f
+                df_res = pd.concat([df_res, df_tmp])
+
+        df_res.loc[df_res.ensemble_mvo.isna(), "ensemble_mvo"] = False
+
+        df_res["cat"] = df_res.apply(
+            lambda row:
+                "mvo" if row.ensemble_mvo else
+                "chull" if row.ensemble_chull else
+                "pfront" if row.ensemble_pfront else
+                "best" if row.ensemble_best else
+                "rand" if row.ensemble_rand else
+                "all"
+            , axis=1)
+
+        df_res.to_csv(output[0])
+
 # rule remove_mvo_kappa_error_plot_data:
 #     input:
 #         "data/temp/{dataset}/kappa_error_res/plot_data.csv"
