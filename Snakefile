@@ -731,7 +731,7 @@ rule ensemble_mvo:
         df_indcs_test = pd.read_csv(input[2], index_col=0)
         indcs_test = df_indcs_test[f"fold_{wildcards.fold}"]
 
-        df_points = pd.read_csv(input[2], index_col=0)
+        df_points = pd.read_csv(input[3], index_col=0)
 
         # y is average pairwise error
         train_paths = list(set(
