@@ -6,7 +6,8 @@ import more_itertools
 
 class XCDChart:
 
-    def __init__(self, ensemble_data, cd_data):
+    def __init__(self, ensemble_data, cd_data, width=500):
+        self.width = width
         self.cd_cats = cd_data["cats"]
         self.cd_cats_data = self.init_cd_data(self.cd_cats)
         self.cd_models = cd_data["models"]
@@ -22,14 +23,14 @@ class XCDChart:
 
         source["mcc_size"] = source.mcc.apply(
             lambda m:
-            "[-1.0,0.6[" if m < 0.6 else
-            "[0.60,0.65[" if 0.6 <= m < 0.65 else
-            "[0.65,0.70[" if 0.65 <= m < 0.70 else
-            "[0.70,0.75[" if 0.7 <= m < 0.75 else
-            "[0.75,0.80[" if 0.75 <= m < 0.8 else
-            "[0.80,0.85[" if 0.8 <= m < 0.85 else
-            "[0.85,0.90[" if 0.85 <= m < 0.9 else
-            "[0.9, 1.0]"
+            "-1.0 - 0.6" if m < 0.6 else
+            "0.60 - 0.65" if 0.6 <= m < 0.65 else
+            "0.65 - 0.70" if 0.65 <= m < 0.70 else
+            "0.70 - 0.75" if 0.7 <= m < 0.75 else
+            "0.75 - 0.80" if 0.75 <= m < 0.8 else
+            "0.80 - 0.85" if 0.8 <= m < 0.85 else
+            "0.85 - 0.90" if 0.85 <= m < 0.9 else
+            "0.9 - 1.0"
         )
 
         mappings_x = dict(zip(self.cd_cats["names"], range(len(self.cd_cats["names"]))))
@@ -105,7 +106,7 @@ class XCDChart:
     def make_main_component(self):
 
         dots = alt.Chart(self.ensemble_data).mark_rect(
-            filled=True, opacity=1.0, color="black"
+            filled=True, opacity=1.0, color="black", stroke="white"
         ).encode(
             x=alt.X(
                 "cat_num:O", title=None,
@@ -119,11 +120,12 @@ class XCDChart:
             ),
             color=alt.Color(
                 "mcc_size:N", title="MCC",
-                scale=alt.Scale(scheme="greys")
+                scale=alt.Scale(scheme="greys"),
+                legend=alt.Legend(orient="top")
             ),
             tooltip=["mcc:Q", "model:N", "meta_model:N", "cat:N"]
         ).properties(
-            width=160
+            width=self.width
         )
 
         return dots
@@ -174,7 +176,7 @@ class XCDChart:
         direction = "x_axis" if fields["y"] == "y:N" else "y_axis"
 
         if direction == "x_axis":
-            width = 160
+            width = self.width
             height = 20 if lines == 0 else 20 * lines
         else:
             height = 240
@@ -217,7 +219,8 @@ class XCDChart:
             )
         else:
             axis_chart.encoding.x.axis = alt.Axis(
-                offset=-20
+                offset=-20,
+                labelAngle=360
             )
 
         axis_chart.encoding.x.title = None
@@ -233,14 +236,17 @@ class XCDChart:
                     self.make_cd_componet_rules(
                         data=self.cd_cats_data,
                         fields={
-                            "x": alt.X("x:O", axis=alt.Axis(grid=True)),
+                            "x": alt.X("x:O", axis=alt.Axis(grid=True, domainOpacity=0.0)),
+                            # "x": alt.X("x:O", axis=alt.Axis(grid=True)),
                             "x2": "x2",
-                            "y": "y:N",
+                            # "y": alt.Y("y:N", axis=alt.Axis(domainOpacity=1.0)),
+                            # "y": alt.Y("y:N", axis=alt.Axis(grid=True, domainOpacity=0.0)),
+                            "y": "y:N"
                         }
                     ),
                     self.make_cd_component_dots(
                         data=self.cd_cats_data,
-                        x=alt.X("x:O"),
+                        x=alt.X("x:O", axis=None),
                         y="y:N"
                     )
                 ),
@@ -250,7 +256,7 @@ class XCDChart:
                             "cat:N",
                             sort=alt.SortArray(list(self.x_order.keys()))
                         )},
-                    width=160
+                    width=self.width
                 ),
                 spacing=0
             ),
@@ -258,14 +264,14 @@ class XCDChart:
                 self.make_cd_componet_rules(
                     data=self.cd_models_data,
                     fields={
-                        "y": alt.X("x:O", axis=alt.Axis(grid=True)),
+                        "y": alt.X("x:O", axis=alt.Axis(grid=True, domain=False)),
                         "y2": "x2",
-                        "x": "y:N",
+                        "x": alt.X("y:N", axis=alt.Axis(domain=False)),
                     }
                 ),
                 self.make_cd_component_dots(
                     data=self.cd_models_data,
-                    x=alt.X("y:N"),
+                    x=alt.X("y:N", axis=alt.Axis(domain=False)),
                     y="x:O"
                 ),
             ),
