@@ -5,13 +5,15 @@ import altair as alt
 
 import yaml
 
-with open("data/ensembles_res/cd.yaml") as f:
+# with open("data/ensembles_res/cd.yaml") as f:
+with open(snakemake.input[0]) as f:
     cd_data = yaml.safe_load(f)
 
 from glob import glob
 
 df_res = pd.DataFrame()
-for p in glob("data/ensembles_res/*/*/*.csv"):
+# for p in glob("data/ensembles_res/*/*/*.csv"):
+for p in list(snakemake.input)[1:]:
     df_tmp = pd.read_csv(p, index_col=0)
     df_res = pd.concat([df_res, df_tmp])
 

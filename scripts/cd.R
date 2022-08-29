@@ -3,8 +3,17 @@ Sys.setlocale("LC_NUMERIC","en_US.UTF-8")
 library(scmamp)
 library(yaml)
 
-d <- read.csv(snakemake@input[[1]], row.names = 1)
-# d <- read.csv("data/temp/avp_amppred/ensembles_res/res.csv", row.names = 1)
+paths <- snakemake@input
+
+d <- read.csv(paths[[1]])
+d["X"] <- NULL
+for (idx in 2:length(paths)) {
+  df = read.csv(paths[[idx]])
+  df["X"] <- NULL
+  d <- rbind(d, df)
+}
+
+d <- d[(d$cat != "mvo"), ]
 
 for (c in unique(d[["cat"]])) {
   d[d["cat"] == c, "idx"] <- 1:sum(d["cat"] == c)
