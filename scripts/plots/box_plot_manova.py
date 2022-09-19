@@ -1,5 +1,6 @@
 import pandas as pd
 import altair as alt
+import numpy as np
 
 df_res = pd.read_csv(snakemake.input[0], index_col=0)
 
@@ -34,3 +35,4 @@ alt.Chart(df_out).mark_boxplot(
     width=50,
     height=100
 ).save(snakemake.output[0])
+

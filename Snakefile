@@ -47,7 +47,7 @@ META_MODEL = {
 META_MODELS = list(META_MODEL.keys())
 
 DATASETS = [
-    "avp_amppred",
+    # "avp_amppred",
     # "amp_antibp2",
     # "isp_il10pred",
     # "cpp_mlcpp-complete",
@@ -1006,7 +1006,7 @@ rule box_plot_manova:
         "data/temp/{dataset}/kappa_error_res/plot_data.csv"
     output:
         "data/temp/{dataset}/vis/box_plot_manova.html"
-    run:
+    script:
         "scripts/plots/box_plot_manova.py"
 
 # rule statistics:

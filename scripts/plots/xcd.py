@@ -1,4 +1,4 @@
-from scripts.xcd_plot import XCDChart
+from xcd_plot import XCDChart
 
 import pandas as pd
 import altair as alt
@@ -27,4 +27,4 @@ s = sorted(zip(cd_data["models"]["average_ranking"], cd_data["models"]["names"])
 # cd_data["models"]["names"] = [e[1] for e in s]
 
 xcd_chart = XCDChart(ensemble_data=df_res, cd_data=cd_data)
-xcd_chart.save("xcd.html")
+xcd_chart.save(snakemake.output[0])
