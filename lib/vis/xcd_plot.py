@@ -121,7 +121,7 @@ class XCDChart:
             color=alt.Color(
                 "mcc_size:N", title="MCC",
                 scale=alt.Scale(scheme="greys"),
-                legend=alt.Legend(orient="top")
+                legend=alt.Legend(orient="top", offset=3)
             ),
             tooltip=["mcc:Q", "model:N", "meta_model:N", "cat:N"]
         ).properties(
@@ -175,12 +175,14 @@ class XCDChart:
         lines = source.shape[0]
         direction = "x_axis" if fields["y"] == "y:N" else "y_axis"
 
+        base_size = 20
+
         if direction == "x_axis":
             width = self.width
-            height = 20 if lines == 0 else 20 * lines
+            height = base_size if lines == 0 else base_size * lines
         else:
-            height = 240
-            width = 20 if lines == 0 else 20 * lines
+            height = 300
+            width = base_size if lines == 0 else base_size * lines
 
         rules = alt.Chart(source).transform_calculate(
             size_="datum.size == 0 ? 10 : 10 + (datum.size * 10)"
