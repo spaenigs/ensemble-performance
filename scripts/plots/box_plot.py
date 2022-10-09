@@ -12,7 +12,7 @@ for p in list(snakemake.input.ensemble_res):
 df_res_single = pd.DataFrame()
 for p in list(snakemake.input.single_res):
     df_tmp = pd.read_csv(p, index_col=0)
-    df_res = pd.concat([df_res, df_tmp])
+    df_res_single = pd.concat([df_res_single, df_tmp])
 
 c1 = alt.Chart(df_res).mark_boxplot(
     size=8, color="#000000", opacity=1.0, outliers={"size": 0}, median=False
