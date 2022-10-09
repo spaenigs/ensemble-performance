@@ -38,7 +38,7 @@ scatter = alt.Chart().mark_point(filled=True, opacity=1.0).encode(
         scale=alt.Scale(
             domain=["all", "best", "chull", "mvo", "pfront", "rand"],
             range=["gray", "#fdae61", "#2c7bb6", "yellow", "#d7191c", "#abd9e9"]),
-        legend=alt.Legend(orient="bottom")
+        legend=alt.Legend(orient="bottom", offset=12)
     ),
     size=alt.condition(
         alt.datum.cat == "all",
@@ -46,8 +46,8 @@ scatter = alt.Chart().mark_point(filled=True, opacity=1.0).encode(
         alt.value(100)
     ),
 ).properties(
-    width=400,
-    height=300
+    width=300,
+    height=200
 )
 
 convex_hull = alt.Chart().mark_line(
@@ -55,7 +55,7 @@ convex_hull = alt.Chart().mark_line(
     size=1.1
 ).encode(
     x=alt.X("x:Q", title=None),
-    y=alt.Y("y:Q", title="average pair-wise error"),
+    y=alt.Y("y:Q", title=None),
     order="chull:N",
 ).transform_filter(
     alt.datum.chull != -1
@@ -97,7 +97,7 @@ c1 = alt.layer(
 heatmap = alt.Chart().mark_rect().encode(
     x=alt.X(
         "x:Q",
-        title="kappa",
+        title=None,
         bin=alt.Bin(maxbins=40),
         axis=alt.Axis(values=[-1.0, -0.5, 0.0, 0.5, 1.0], format=".1f", grid=True),
         scale=alt.Scale(domain=[x_min, x_max])
@@ -106,7 +106,12 @@ heatmap = alt.Chart().mark_rect().encode(
         "y:Q",
         title=None,
         bin=alt.Bin(maxbins=40),
-        axis=alt.Axis(values=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5], format=".1f", grid=True, domain=False, ticks=False, labels=False),
+        axis=alt.Axis(
+            values=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5], 
+            format=".1f", 
+            grid=True, domain=False, 
+            ticks=False, labels=False
+        ),
         scale=alt.Scale(domain=[y_min, y_max])
     ),
     color=alt.Color(
@@ -115,7 +120,7 @@ heatmap = alt.Chart().mark_rect().encode(
         legend=alt.Legend(
             gradientLength=90,
             orient="bottom",
-            offset=4
+            offset=12
             # values=[0, 1500, 3000, 4500]
             # values=[0, np.histogram2d(x=df_res.x, y=df_res.y, bins=45)[0].max()]
         ),
@@ -123,8 +128,8 @@ heatmap = alt.Chart().mark_rect().encode(
     ),
     tooltip="count(x):Q"
 ).properties(
-    height=300,
-    width=400
+    width=300,
+    height=200
 )
 
 c2 = alt.layer(
@@ -150,4 +155,12 @@ resc = alt.hconcat(
 )
 
 # resc.save("kappa.html")
-resc.save(snakemake.output[0])
+resc.configure_header(
+    labelFontSize=14
+).configure_axis(
+    labelFontSize=12
+).configure_legend(
+    gradientThickness=10,
+    labelFontSize=13,
+    columns=3
+).save(snakemake.output[0])

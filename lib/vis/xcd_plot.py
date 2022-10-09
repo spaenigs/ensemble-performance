@@ -284,4 +284,10 @@ class XCDChart:
                 )
             }),
             spacing=0
+        ).configure_legend(
+            labelFontSize=13
+        ).configure_header(
+            labelFontSize=14
+        ).configure_axis(
+            labelFontSize=12
         ).save(path)

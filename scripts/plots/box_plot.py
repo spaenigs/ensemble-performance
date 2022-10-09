@@ -50,8 +50,13 @@ c2 = alt.Chart(df_res_single).mark_boxplot(
     spacing=1
 )
 
-alt.hconcat(c1, c2, spacing=0.7).save(
-    # "boxplot.html",
+alt.hconcat(
+    c1, c2, spacing=0.7
+).configure_header(
+    labelFontSize=14
+).configure_axis(
+    labelFontSize=12
+).save(
     snakemake.output[0],
     vegalite_version="5.1.0"
 )

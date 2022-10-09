@@ -24,14 +24,19 @@ line = alt.Chart(source).mark_line(color="black").encode(
 )
 
 band = alt.Chart(source).mark_errorband(extent="ci", color="black").encode(
-    x=alt.X("gen:O",title="Generation"),
-    y=alt.Y("fitness:Q",title="Fitness (1-MCC)")
+    x=alt.X("gen:O", title=None, axis=alt.Axis(labelAngle=-35)),
+    y=alt.Y("fitness:Q", title=None)
 )
 
 (band + line).properties(
-    height=150,
-    width=150
+    width=100,
+    height=100
 ).facet(
-    column=alt.Column("model:N",title="Model"),
-    row=alt.Row("mmodel:N",title="Ensemble")
+    column=alt.Column("model:N", title=None),
+    row=alt.Row("mmodel:N", title=None),
+    spacing=1
+).configure_header(
+    labelFontSize=14
+).configure_axis(
+    labelFontSize=12
 ).save(snakemake.output[0])
