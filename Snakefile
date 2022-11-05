@@ -75,12 +75,14 @@ rule all:
 
         # 3) run statistics and create tables
         expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
-        # "data/temp/all_datasets/tables/dataset_tables.html",
-        # "data/temp/all_datasets/tables/areas_table.html"
 
         # 4) misc
         expand("data/temp/{dataset}/encodings.csv", dataset=DATASETS),
         expand("data/temp/{dataset}/data_temp_{dataset}.tar.gz", dataset=DATASETS),
+
+        # 5) Combine results
+        "data/temp/all_datasets/tables/dataset_tables.html",
+        "data/temp/all_datasets/tables/areas_table.html"
 
         # 1) prepare data and compute results
         # expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
@@ -1105,6 +1107,8 @@ rule encodings_table:
 
 rule zip_files:
     input:
+        lambda wildcards:
+            expand(f"data/temp/{wildcards.dataset}/single_encodings/{{model}}/res.csv", model=MODELS),
         "data/temp/{dataset}/stats/",
         "data/temp/{dataset}/vis/",
         "data/temp/{dataset}/ensembles_res/",
