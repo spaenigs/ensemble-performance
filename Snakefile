@@ -66,32 +66,39 @@ wildcard_constraints:
 
 rule all:
     input:
-        # 1) prepare data and compute results
-        expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
-            model=MODELS,dataset=DATASETS),
-        expand("data/temp/{dataset}/kappa_error_all/{model}/{fold}.csv",
-            dataset=DATASETS, model=MODELS,
-               fold=FOLDS),
-        expand("data/temp/{dataset}/ensembles_res/{meta_model}/{model}/res.csv",
-               dataset=DATASETS, meta_model=META_MODELS, model=MODELS),
-        expand("data/temp/{dataset}/areas/{model}/res.csv",
-               dataset=DATASETS, model=MODELS),
-        expand("data/temp/{dataset}/ensembles_res/res.csv",
-            dataset=DATASETS),
-        expand("data/temp/{dataset}/kappa_error_res/plot_data.csv", dataset=DATASETS),
-
         # 2) create plots
         expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/vis/gen_vs_perf.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/vis/box_plot.html", dataset=DATASETS),
-        expand("data/temp/{dataset}/vis/xcd_plot.html", dataset=DATASETS),
+        expand("data/temp/{dataset}/vis/gen_vs_perf.{ftype}", dataset=DATASETS, ftype=["html", "png"]),
+        expand("data/temp/{dataset}/vis/box_plot.{ftype}", dataset=DATASETS, ftype=["html", "png"]),
+        expand("data/temp/{dataset}/vis/xcd_plot.{ftype}", dataset=DATASETS, ftype=["html", "png"]),
         expand("data/temp/{dataset}/vis/box_plot_manova.html", dataset=DATASETS),
 
         # 3) run statistics and create tables
-        # expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
-        # expand("data/temp/{dataset}/{dataset}_zipped.zip", dataset=DATASETS),
+        expand("data/temp/{dataset}/stats/table.html", dataset=DATASETS),
         # "data/temp/all_datasets/tables/dataset_tables.html",
         # "data/temp/all_datasets/tables/areas_table.html"
+
+        # 4) misc
+        expand("data/temp/{dataset}/encodings.csv", dataset=DATASETS),
+        expand("data/temp/{dataset}/data_temp_{dataset}.tar.gz", dataset=DATASETS),
+
+        # 1) prepare data and compute results
+        # expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
+        #     model=MODELS,dataset=DATASETS),
+        # expand("data/temp/{dataset}/kappa_error_all/{model}/{fold}.csv",
+        #     dataset=DATASETS, model=MODELS,
+        #        fold=FOLDS),
+        # expand("data/temp/{dataset}/ensembles_res/{meta_model}/{model}/res.csv",
+        #        dataset=DATASETS, meta_model=META_MODELS, model=MODELS),
+        # expand("data/temp/{dataset}/areas/{model}/res.csv",
+        #        dataset=DATASETS, model=MODELS),
+        # expand("data/temp/{dataset}/ensembles_res/res.csv",
+        #     dataset=DATASETS),
+        # expand("data/temp/{dataset}/kappa_error_res/plot_data.csv", dataset=DATASETS),
+
+        
+
+        
 
 # search for common indices across all datasets (less indices due to sec + ter struc.)
 rule common_idx:
@@ -973,7 +980,8 @@ rule plot_gens_vs_perf:
                 expand(f"data/temp/{wildcards.dataset}/ensemble_mvo/{{meta_model}}/{{model}}/gens_vs_perf_{{fold}}.txt",
                        meta_model=META_MODELS, model=MODELS, fold=FOLDS[:5])
     output:
-        "data/temp/{dataset}/vis/gen_vs_perf.html"
+        "data/temp/{dataset}/vis/gen_vs_perf.html",
+        "data/temp/{dataset}/vis/gen_vs_perf.png"
     script:
         "scripts/plots/gens_vs_perf.py"
 
@@ -986,7 +994,8 @@ rule box_plot:
             expand(f"data/temp/{wildcards.dataset}/single_encodings/{{model}}/res.csv", 
                    model=MODELS)
     output:
-        "data/temp/{dataset}/vis/box_plot.html"
+        "data/temp/{dataset}/vis/box_plot.html",
+        "data/temp/{dataset}/vis/box_plot.png"
     script:
         "scripts/plots/box_plot.py"
 
@@ -997,7 +1006,8 @@ rule xcd_plot:
             expand(f"data/temp/{wildcards.dataset}/ensembles_res/{{meta_model}}/{{model}}/res.csv",
                    meta_model=META_MODELS, model=MODELS)
     output:
-        "data/temp/{dataset}/vis/xcd_plot.html"
+        "data/temp/{dataset}/vis/xcd_plot.html",
+        "data/temp/{dataset}/vis/xcd_plot.png"
     script:
         "scripts/plots/xcd.py"
 
@@ -1009,63 +1019,102 @@ rule box_plot_manova:
     script:
         "scripts/plots/box_plot_manova.py"
 
-# rule statistics:
-#     input:
-#         "data/temp/{dataset}/kappa_error_res/plot_data_wo_mvo.csv", # TODO see code in cd.R
-#         lambda wildcards:
-#             expand(f"data/temp/{wildcards.dataset}/areas/{{model}}/res.csv", model=MODELS)
-#     output:
-#         "data/temp/{dataset}/stats/kappa_error/manova_summary.csv",
-#         "data/temp/{dataset}/stats/kappa_error/manova_summary_aov.csv",
-#         "data/temp/{dataset}/stats/kappa_error/anova_kappa_summary_aov.csv",
-#         "data/temp/{dataset}/stats/kappa_error/anova_kappa_tukey_hsd.csv",
-#         "data/temp/{dataset}/stats/kappa_error/anova_error_summary_aov.csv",
-#         "data/temp/{dataset}/stats/kappa_error/anova_error_tukey_hsd.csv",
-#         "data/temp/{dataset}/stats/areas/anova_summary_aov.csv",
-#         "data/temp/{dataset}/stats/areas/anova_tukey_hsd.csv"
-#     script:
-#         "scripts/statistics.R"
-#
-# rule statistics_table:
-#     input:
-#         "data/temp/{dataset}/stats/kappa_error/manova_summary.csv",
-#         "data/temp/{dataset}/stats/kappa_error/manova_summary_aov.csv",
-#         "data/temp/{dataset}/stats/kappa_error/anova_kappa_summary_aov.csv",
-#         "data/temp/{dataset}/stats/kappa_error/anova_kappa_tukey_hsd.csv",
-#         "data/temp/{dataset}/stats/kappa_error/anova_error_summary_aov.csv",
-#         "data/temp/{dataset}/stats/kappa_error/anova_error_tukey_hsd.csv",
-#         "data/temp/{dataset}/stats/areas/anova_summary_aov.csv",
-#         "data/temp/{dataset}/stats/areas/anova_tukey_hsd.csv"
-#     output:
-#         "data/temp/{dataset}/stats/table.html"
-#     run:
-#         with open(output[0], "w") as f:
-#             for p in sorted(input):
-#                 df_tmp = pd.read_csv(
-#                     p,index_col=0,
-#                     converters={"term": lambda v: v.replace("df_res$","")}
-#                 )
-#                 df_tmp.fillna("-",inplace=True)
-#                 exp = p.split("/")[-1][:-4]
-#                 df_tmp["experiment"] = exp
-#                 f.write(f"<h4>{exp}</h4>\n{df_tmp.to_html(col_space='70px')}\n")
-#
-# rule zip_files:
-#     input:
-#         "data/temp/{dataset}/stats/table.html",
-#         "data/temp/{dataset}/vis/box_plot.html",
-#         "data/temp/{dataset}/vis/box_plot_manova.html",
-#         "data/temp/{dataset}/vis/kappa_error_plot.html",
-#         "data/temp/{dataset}/vis/xcd_plot.html"
-#     output:
-#         temp("data/temp/{dataset}/{dataset}.zip"),
-#         "data/temp/{dataset}/{dataset}_zipped.zip"
-#     shell:
-#         """
-#         zip -q -j {output[0]} {input};
-#         zip -q -j {output[1]} {output[0]};
-#         """
-#
+rule statistics:
+    input:
+        "data/temp/{dataset}/kappa_error_res/plot_data.csv",
+        lambda wildcards:
+            expand(f"data/temp/{wildcards.dataset}/areas/{{model}}/res.csv", model=MODELS)
+    output:
+        "data/temp/{dataset}/stats/kappa_error/manova_summary.csv",
+        "data/temp/{dataset}/stats/kappa_error/manova_summary_aov.csv",
+        "data/temp/{dataset}/stats/kappa_error/anova_kappa_summary_aov.csv",
+        "data/temp/{dataset}/stats/kappa_error/anova_kappa_tukey_hsd.csv",
+        "data/temp/{dataset}/stats/kappa_error/anova_error_summary_aov.csv",
+        "data/temp/{dataset}/stats/kappa_error/anova_error_tukey_hsd.csv",
+        "data/temp/{dataset}/stats/areas/anova_summary_aov.csv",
+        "data/temp/{dataset}/stats/areas/anova_tukey_hsd.csv"
+    script:
+        "scripts/statistics.R"
+
+rule statistics_table:
+    input:
+        "data/temp/{dataset}/stats/kappa_error/manova_summary.csv",
+        "data/temp/{dataset}/stats/kappa_error/manova_summary_aov.csv",
+        "data/temp/{dataset}/stats/kappa_error/anova_kappa_summary_aov.csv",
+        "data/temp/{dataset}/stats/kappa_error/anova_kappa_tukey_hsd.csv",
+        "data/temp/{dataset}/stats/kappa_error/anova_error_summary_aov.csv",
+        "data/temp/{dataset}/stats/kappa_error/anova_error_tukey_hsd.csv",
+        "data/temp/{dataset}/stats/areas/anova_summary_aov.csv",
+        "data/temp/{dataset}/stats/areas/anova_tukey_hsd.csv"
+    output:
+        "data/temp/{dataset}/stats/table.html"
+    run:
+        with open(output[0], "w") as f:
+            for p in sorted(input):
+                df_tmp = pd.read_csv(
+                    p,index_col=0,
+                    converters={"term": lambda v: v.replace("df_res$","")}
+                )
+                df_tmp.fillna("-",inplace=True)
+                exp = p.split("/")[-1][:-4]
+                df_tmp["experiment"] = exp
+                f.write(f"<h4>{exp}</h4>\n{df_tmp.to_html(col_space='70px')}\n")
+
+rule encodings_table:
+    input:
+        lambda wildcards:
+            expand(f"data/{wildcards.dataset}/csv/all/{{csv_name}}",
+                   csv_name=get_csv_names(wildcards.dataset)[:N_ENCODINGS])
+    output:
+        "data/temp/{dataset}/encodings.csv"
+    run:
+        paths = [p.split("/")[-1].replace(".csv", "") for p in list(input)]
+        paths = sorted(set(paths))
+        arr = ["electrostatic_hull", "dist_freq"]
+        paths = [[p[:18]] + p[18:].split("_") 
+                 if "hull" in p else [p[:9]] + p[10:].split("_") 
+                 if "dist_freq" in p else p.split("_") for p in paths]
+        paths = [{k: v for k,v in zip(range(len(p)), p)} for p in paths]
+
+        df = pd.DataFrame(paths)
+        df.columns = ["param_" + str(i) for i in range(5)]
+
+
+        def calc(vals):
+            return "; ".join([str(v) for v in set(vals)])
+
+
+        df = df.groupby("param_0").apply(lambda df: pd.DataFrame({
+            "params_1": [calc(df["param_1"].values)],
+            "params_2": [calc(df["param_2"].values)],
+            "params_3": [calc(df["param_3"].values)],
+            "params_4": [calc(df["param_4"].values)],
+            #"params_5": [calc(df["param_5"].values)],
+        })).reset_index(drop=False)
+
+        df = df.drop(["level_1"], axis=1)
+
+        cols = list(df.columns)
+        cols[0] = "encoding"
+        df.columns = cols
+
+        df = df.replace("nan", "")
+
+        df.to_csv(output[0], sep=",", index_label=False)
+        
+
+rule zip_files:
+    input:
+        "data/temp/{dataset}/stats/",
+        "data/temp/{dataset}/vis/",
+        "data/temp/{dataset}/ensembles_res/",
+        "data/temp/{dataset}/areas/",
+        "data/temp/{dataset}/encodings.csv"
+    output:
+        "data/temp/{dataset}/data_temp_{dataset}.tar.gz"
+    shell:
+        "tar czf {output[0]} {input}"
+
 # rule dataset_tables:
 #     input:
 #         expand("data/temp/{dataset}/ensembles_res/{meta_model}/{model}/res.csv",

@@ -28,7 +28,7 @@ band = alt.Chart(source).mark_errorband(extent="ci", color="black").encode(
     y=alt.Y("fitness:Q", title=None)
 )
 
-(band + line).properties(
+chart = (band + line).properties(
     width=100,
     height=100
 ).facet(
@@ -39,4 +39,7 @@ band = alt.Chart(source).mark_errorband(extent="ci", color="black").encode(
     labelFontSize=14
 ).configure_axis(
     labelFontSize=12
-).save(snakemake.output[0])
+)
+
+chart.save(snakemake.output[0])  # html
+chart.save(snakemake.output[1])  # png

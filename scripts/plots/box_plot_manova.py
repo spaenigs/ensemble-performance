@@ -20,7 +20,7 @@ for m in df_res.model.unique():
     ])
     df_out = pd.concat([df_out, df_tmp])
 
-alt.Chart(df_out).mark_boxplot(
+chart = alt.Chart(df_out).mark_boxplot(
     color="grey",
     size=15
 ).encode(
@@ -34,5 +34,7 @@ alt.Chart(df_out).mark_boxplot(
 ).properties(
     width=50,
     height=100
-).save(snakemake.output[0])
+)
+
+chart.save(snakemake.output[0])  # html
 

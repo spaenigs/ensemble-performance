@@ -27,4 +27,5 @@ s = sorted(zip(cd_data["models"]["average_ranking"], cd_data["models"]["names"])
 # cd_data["models"]["names"] = [e[1] for e in s]
 
 xcd_chart = XCDChart(ensemble_data=df_res, cd_data=cd_data)
-xcd_chart.save(snakemake.output[0])
+xcd_chart.save(snakemake.output[0])  # html
+xcd_chart.save(snakemake.output[1])  # png

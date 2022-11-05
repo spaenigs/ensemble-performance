@@ -154,8 +154,7 @@ resc = alt.hconcat(
     color="shared"
 )
 
-# resc.save("kappa.html")
-resc.configure_header(
+chart = resc.configure_header(
     labelFontSize=14
 ).configure_axis(
     labelFontSize=12
@@ -163,4 +162,6 @@ resc.configure_header(
     gradientThickness=10,
     labelFontSize=13,
     columns=3
-).save(snakemake.output[0])
+)
+
+chart.save(snakemake.output[0])  # html
