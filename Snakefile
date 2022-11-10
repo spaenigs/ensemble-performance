@@ -3,12 +3,10 @@ import os.path
 
 import pandas as pd
 import numpy as np
-import altair as alt
 
 import functools
 import math
 
-import yaml
 from functools import reduce
 from numpy.random import default_rng
 from scipy.spatial import ConvexHull
@@ -20,7 +18,6 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import StratifiedShuffleSplit # Monte Carlo CV
 from sklearn.tree import DecisionTreeClassifier
-from more_itertools import chunked
 
 from utils import get_csv_names
 from optimizer.ensemble import StackingClassifier, VotingClassifier
@@ -47,16 +44,16 @@ META_MODEL = {
 META_MODELS = list(META_MODEL.keys())
 
 DATASETS = [
-    # "avp_amppred",
-    # "amp_antibp2",
-    # "isp_il10pred",
-    # "cpp_mlcpp-complete",
-    # "nep_neuropipred-complete",
-    # "pip_pipel",
-    # "aip_antiinflam-complete",
-    # "acp_mlacp",
-    # "atb_antitbp",
-    # "hem_hemopi"
+    "avp_amppred",
+    "amp_antibp2",
+    "isp_il10pred",
+    "cpp_mlcpp-complete",
+    "nep_neuropipred-complete",
+    "pip_pipel",
+    "aip_antiinflam-complete",
+    "acp_mlacp",
+    "atb_antitbp",
+    "hem_hemopi"
 ]
 
 N_ENCODINGS = None
@@ -66,6 +63,20 @@ wildcard_constraints:
 
 rule all:
     input:
+        # 1) prepare data and compute results
+        expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
+            model=MODELS,dataset=DATASETS),
+        expand("data/temp/{dataset}/kappa_error_all/{model}/{fold}.csv",
+            dataset=DATASETS, model=MODELS,
+               fold=FOLDS),
+        expand("data/temp/{dataset}/ensembles_res/{meta_model}/{model}/res.csv",
+               dataset=DATASETS, meta_model=META_MODELS, model=MODELS),
+        expand("data/temp/{dataset}/areas/{model}/res.csv",
+               dataset=DATASETS, model=MODELS),
+        expand("data/temp/{dataset}/ensembles_res/res.csv",
+            dataset=DATASETS),
+        expand("data/temp/{dataset}/kappa_error_res/plot_data.csv", dataset=DATASETS),
+
         # 2) create plots
         expand("data/temp/{dataset}/vis/kappa_error_plot.html", dataset=DATASETS),
         expand("data/temp/{dataset}/vis/gen_vs_perf.{ftype}", dataset=DATASETS, ftype=["html", "png"]),
@@ -78,29 +89,11 @@ rule all:
 
         # 4) misc
         expand("data/temp/{dataset}/encodings.csv", dataset=DATASETS),
-        expand("data/temp/{dataset}/data_temp_{dataset}.tar.gz", dataset=DATASETS),
+        # expand("data/temp/{dataset}/data_temp_{dataset}.tar.gz", dataset=DATASETS),
 
         # 5) Combine results
-        "data/temp/all_datasets/tables/dataset_tables.html",
-        "data/temp/all_datasets/tables/areas_table.html"
-
-        # 1) prepare data and compute results
-        # expand("data/temp/{dataset}/single_encodings/{model}/res.csv",
-        #     model=MODELS,dataset=DATASETS),
-        # expand("data/temp/{dataset}/kappa_error_all/{model}/{fold}.csv",
-        #     dataset=DATASETS, model=MODELS,
-        #        fold=FOLDS),
-        # expand("data/temp/{dataset}/ensembles_res/{meta_model}/{model}/res.csv",
-        #        dataset=DATASETS, meta_model=META_MODELS, model=MODELS),
-        # expand("data/temp/{dataset}/areas/{model}/res.csv",
-        #        dataset=DATASETS, model=MODELS),
-        # expand("data/temp/{dataset}/ensembles_res/res.csv",
-        #     dataset=DATASETS),
-        # expand("data/temp/{dataset}/kappa_error_res/plot_data.csv", dataset=DATASETS),
-
-        
-
-        
+        # "data/temp/all_datasets/tables/dataset_tables.html",
+        # "data/temp/all_datasets/tables/areas_table.html"
 
 # search for common indices across all datasets (less indices due to sec + ter struc.)
 rule common_idx:
@@ -992,8 +985,8 @@ rule box_plot:
         ensemble_res=lambda wildcards:
             expand(f"data/temp/{wildcards.dataset}/ensembles_res/{{meta_model}}/{{model}}/res.csv",
                    meta_model=META_MODELS, model=MODELS),
-        single_res=lambda wildcards: 
-            expand(f"data/temp/{wildcards.dataset}/single_encodings/{{model}}/res.csv", 
+        single_res=lambda wildcards:
+            expand(f"data/temp/{wildcards.dataset}/single_encodings/{{model}}/res.csv",
                    model=MODELS)
     output:
         "data/temp/{dataset}/vis/box_plot.html",
@@ -1073,8 +1066,8 @@ rule encodings_table:
         paths = [p.split("/")[-1].replace(".csv", "") for p in list(input)]
         paths = sorted(set(paths))
         arr = ["electrostatic_hull", "dist_freq"]
-        paths = [[p[:18]] + p[18:].split("_") 
-                 if "hull" in p else [p[:9]] + p[10:].split("_") 
+        paths = [[p[:18]] + p[18:].split("_")
+                 if "hull" in p else [p[:9]] + p[10:].split("_")
                  if "dist_freq" in p else p.split("_") for p in paths]
         paths = [{k: v for k,v in zip(range(len(p)), p)} for p in paths]
 
@@ -1103,7 +1096,6 @@ rule encodings_table:
         df = df.replace("nan", "")
 
         df.to_csv(output[0], sep=",", index_label=False)
-        
 
 rule zip_files:
     input:
@@ -1119,131 +1111,144 @@ rule zip_files:
     shell:
         "tar czf {output[0]} {input}"
 
-# rule dataset_tables:
-#     input:
-#         expand("data/temp/{dataset}/ensembles_res/{meta_model}/{model}/res.csv",
-#                dataset=DATASETS, meta_model=META_MODELS, model=MODELS)
-#     output:
-#         "data/temp/all_datasets/tables/dataset_tables.html"
-#     run:
-#         from scipy.stats import ttest_rel
-#
-#         def get_table(df_res):
-#
-#             df_stats = df_res \
-#                 .groupby(["dataset", "model", "cat", "meta_model"])["mcc"] \
-#                 .describe().reset_index() \
-#                 .loc[:, ['dataset', 'model', 'cat', 'meta_model', 'mean', 'std']]
-#
-#             df_final = df_stats \
-#                 .groupby(["dataset", "cat"]) \
-#                 .apply(lambda df: df.sort_values("mean", ascending=False).iloc[0, :]) \
-#                 .reset_index(drop=True)
-#
-#             df_final["anno"] = df_final[["mean", "std"]].apply(
-#                 lambda row: f"{np.round(row[0], 2)} (±{np.round(row[1], 2)})",
-#                 axis=1
-#             )
-#
-#             df_out = df_final.pivot(index="dataset", columns="cat", values="anno")
-#
-#             for ds in df_final.dataset.unique():
-#
-#                 best_ens_cat, best_ens_mm, best_ens_m = df_final\
-#                     .loc[df_final.dataset == ds]\
-#                     .sort_values("mean", ascending=False)[["cat", "meta_model", "model"]]\
-#                     .iloc[0]
-#
-#                 single_best_mm, single_best_m = df_final\
-#                     .loc[(df_final.dataset == ds) & (df_final.cat == "single_best")]\
-#                     .sort_values("mean",ascending=False)[["meta_model", "model"]] \
-#                     .iloc[0]
-#
-#                 a1 = df_res.loc[
-#                     (df_res.dataset == ds) &
-#                     (df_res.cat == best_ens_cat) &
-#                     (df_res.meta_model == best_ens_mm) &
-#                     (df_res.model == best_ens_m)
-#                 , "mcc"].values
-#
-#                 a2 = df_res.loc[
-#                     (df_res.dataset == ds) &
-#                     (df_res.cat == "single_best") &
-#                     (df_res.meta_model == single_best_mm) &
-#                     (df_res.model == single_best_m)
-#                 , "mcc"
-#                 ].values
-#
-#                 _, pval = ttest_rel(a1, a2, alternative="greater")
-#
-#                 # 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#                 if pval == 0:
-#                     sig = "***"
-#                 elif pval < 0.001:
-#                     sig = "**"
-#                 elif pval < 0.01:
-#                     sig = "*"
-#                 elif pval < 0.05:
-#                     sig = "."
-#                 else:
-#                     sig = "ns"
-#
-#                 df_out.loc[ds, best_ens_cat] = \
-#                     df_out.loc[ds, best_ens_cat].replace(" (",f"<sup>{sig}</sup> (")
-#
-#                 df_out.columns.name = None
-#                 df_out.index.name = None
-#
-#             return df_out.to_html(escape=False)
-#
-#         df_res = pd.DataFrame()
-#         for p in list(input):
-#             df_tmp = pd.read_csv(p,index_col=0)
-#             dataset = p.split("/")[2]
-#             df_tmp["dataset"] = dataset
-#             df_res = pd.concat([df_res, df_tmp])
-#
-#         t1 = get_table(df_res)
-#
-#         df_res = df_res.loc[df_res.model != "rf"]
-#         t2 = get_table(df_res)
-#
-#         with open(output[0], "w") as f:
-#             h1 = "<h3>With RF</h3>"
-#             h2 = "<h3>Without RF</h3>"
-#             f.write(f"{h1}\n{t1}\n{h2}\n{t2}\n")
-#             f.flush()
-#
-# rule areas_table:
-#     input:
-#         expand("data/temp/{dataset}/areas/{model}/res.csv",
-#                dataset=DATASETS, model=MODELS)
-#     output:
-#         "data/temp/all_datasets/tables/areas_table.html"
-#     run:
-#         df_stats = pd.DataFrame()
-#         for p in list(input):
-#             df_tmp = pd.read_csv(p, index_col=0)
-#             df_res = df_tmp.area.describe()[["mean", "std"]]
-#             df_res["dataset"] = p.split("/")[2]
-#             df_res["model"] = p.split("/")[-2]
-#             df_stats = pd.concat([
-#                 df_stats,
-#                 df_res.to_frame().transpose()
-#             ])
-#
-#         df_stats.reset_index(drop=True, inplace=True)
-#
-#         df_stats["anno"] = df_stats[["mean", "std"]].apply(
-#             lambda row: f"{np.round(row[0], 2)} (±{np.round(row[1], 3)})",
-#             axis=1
-#         )
-#
-#         df_out = df_stats.pivot(index="dataset", columns="model", values="anno")
-#         df_out.columns.name = None
-#         df_out.index.name = None
-#
-#         with open(output[0], "w") as f:
-#             f.write(f"{df_out.to_html()}\n")
-#             f.flush()
-#
+rule dataset_tables:
+    input:
+        ensembles_res=expand(
+            "data/temp/{dataset}/ensembles_res/{meta_model}/{model}/res.csv",
+            dataset=DATASETS, meta_model=META_MODELS, model=MODELS),
+        single_encodings_res=expand(
+            "data/temp/{dataset}/single_encodings/{model}/res.csv",
+            dataset=DATASETS, model=MODELS)
+    output:
+        "data/temp/all_datasets/tables/dataset_tables.html"
+    run:
+        from scipy.stats import ttest_rel
+
+        def get_table(df_res):
+
+            df_stats = df_res \
+                .groupby(["dataset", "model", "cat", "meta_model"])["mcc"] \
+                .describe().reset_index() \
+                .loc[:, ['dataset', 'model', 'cat', 'meta_model', 'mean', 'std']]
+
+            df_final = df_stats \
+                .groupby(["dataset", "cat"]) \
+                .apply(lambda df: df.sort_values("mean", ascending=False).iloc[0, :]) \
+                .reset_index(drop=True)
+
+            df_final["anno"] = df_final[["mean", "std"]].apply(
+                lambda row: f"{np.round(row[0], 2)} (±{np.round(row[1], 2)})",
+                axis=1
+            )
+
+            df_out = df_final.pivot(index="dataset", columns="cat", values="anno")
+
+            for ds in df_final.dataset.unique():
+
+                best_ens_cat, best_ens_mm, best_ens_m = df_final\
+                    .loc[df_final.dataset == ds]\
+                    .sort_values("mean", ascending=False)[["cat", "meta_model", "model"]]\
+                    .iloc[0]
+
+                single_best_mm, single_best_m = df_final\
+                    .loc[(df_final.dataset == ds) & (df_final.cat == "single")]\
+                    .sort_values("mean",ascending=False)[["meta_model", "model"]] \
+                    .iloc[0]
+
+                a1 = df_res.loc[
+                    (df_res.dataset == ds) &
+                    (df_res.cat == best_ens_cat) &
+                    (df_res.meta_model == best_ens_mm) &
+                    (df_res.model == best_ens_m)
+                , "mcc"].values
+
+                a2 = df_res.loc[
+                    (df_res.dataset == ds) &
+                    (df_res.cat == "single") &
+                    (df_res.meta_model == single_best_mm) &
+                    (df_res.model == single_best_m)
+                , "mcc"
+                ].values[:len(a1)]  # in case MVO is best method
+
+                _, pval = ttest_rel(a1, a2, alternative="greater")
+
+                # 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+                if pval == 0:
+                    sig = "***"
+                elif pval < 0.001:
+                    sig = "**"
+                elif pval < 0.01:
+                    sig = "*"
+                elif pval < 0.05:
+                    sig = "."
+                else:
+                    sig = "ns"
+
+                df_out.loc[ds, best_ens_cat] = \
+                    df_out.loc[ds, best_ens_cat].replace(" (",f"<sup>{sig}</sup> (")
+
+                df_out.columns.name = None
+                df_out.index.name = None
+
+            return df_out.to_html(escape=False)
+
+        df_res = pd.DataFrame()
+
+        for p in list(input.ensembles_res):
+            df_tmp = pd.read_csv(p,index_col=0)
+            dataset = p.split("/")[2]
+            df_tmp["dataset"] = dataset
+            df_res = pd.concat([df_res, df_tmp])
+
+        for p in list(input.single_encodings_res):
+            df_tmp = pd.read_csv(p,index_col=0)
+            dataset = p.split("/")[2]
+            df_tmp["dataset"] = dataset
+            df_tmp = df_tmp.loc[df_tmp["rank"] == "Top_1", :]
+            df_tmp = df_tmp.drop(["encoding"],axis=1)
+            df_tmp = df_tmp.rename(columns={"rank": "meta_model"})
+            df_res = pd.concat([df_res, df_tmp])
+
+        t1 = get_table(df_res)
+
+        df_res = df_res.loc[df_res.model != "rf"]
+        t2 = get_table(df_res)
+
+        with open(output[0], "w") as f:
+            h1 = "<h3>With RF</h3>"
+            h2 = "<h3>Without RF</h3>"
+            f.write(f"{h1}\n{t1}\n{h2}\n{t2}\n")
+            f.flush()
+
+rule areas_table:
+    input:
+        expand("data/temp/{dataset}/areas/{model}/res.csv",
+               dataset=DATASETS, model=MODELS)
+    output:
+        "data/temp/all_datasets/tables/areas_table.html"
+    run:
+        df_stats = pd.DataFrame()
+        for p in list(input):
+            df_tmp = pd.read_csv(p, index_col=0)
+            df_res = df_tmp.area.describe()[["mean", "std"]]
+            df_res["dataset"] = p.split("/")[2]
+            df_res["model"] = p.split("/")[-2]
+            df_stats = pd.concat([
+                df_stats,
+                df_res.to_frame().transpose()
+            ])
+
+        df_stats.reset_index(drop=True, inplace=True)
+
+        df_stats["anno"] = df_stats[["mean", "std"]].apply(
+            lambda row: f"{np.round(row[0], 2)} (±{np.round(row[1], 3)})",
+            axis=1
+        )
+
+        df_out = df_stats.pivot(index="dataset", columns="model", values="anno")
+        df_out.columns.name = None
+        df_out.index.name = None
+
+        with open(output[0], "w") as f:
+            f.write(f"{df_out.to_html()}\n")
+            f.flush()
